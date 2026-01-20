@@ -52,66 +52,55 @@ interface DistrictData {
     config: EventConfig;
 }
 
-// NOTE: Add your Google Apps Script URLs and Spreadsheet IDs here for each district
 const DISTRICTS: Record<string, DistrictData> = {
-    // Subdomain: 'muar' (e.g., muar.yourdomain.com)
-    'muar': {
+    'mssdmuar': {
         scriptUrl: 'https://script.google.com/macros/s/AKfycbwWNUtbfV4VKvsmbGyD4RWNUEVFdKwkk8bOsXuPdBkfgJ_-QFySGx0uJmfsBW5087mlPQ/exec',
-        spreadsheetId: '1FJnBiWM5cuH0a1Yw0CxAR9zy_LiD1lVtQg9ijXRrPS4', // Replace with Muar Sheet ID
+        spreadsheetId: '1FJnBiWM5cuH0a1Yw0CxAR9zy_LiD1lVtQg9ijXRrPS4',
         config: {
             ...BASE_CONFIG,
             eventName: "KEJOHANAN CATUR MSSD MUAR 2025",
-            eventVenue: "Dewan SMK Tun Dr Ismail", // Example
+            eventVenue: "Dewan SMK Tun Dr Ismail",
             adminPhone: "60182046224"
         }
     },
-    // Subdomain: 'pasirgudang' (e.g., pasirgudang.yourdomain.com)
-    'pasirgudang': {
-        scriptUrl: 'REPLACE_WITH_PG_SCRIPT_URL', // You need to deploy a new script for PG
-        spreadsheetId: 'REPLACE_WITH_PG_SHEET_ID', // You need a new sheet for PG
+    'mssdpasirgudang': {
+        scriptUrl: '', // To be filled by user in Setup
+        spreadsheetId: '', // To be filled by user in Setup
         config: {
             ...BASE_CONFIG,
             eventName: "KEJOHANAN CATUR MSSD PASIR GUDANG 2025",
-            eventVenue: "Dewan SMK Pasir Gudang", // Example
+            eventVenue: "Dewan Sekolah Pasir Gudang",
             adminPhone: "60123456789"
         }
     },
-    // Default fallback (currently Kota Tinggi data)
     'default': {
         scriptUrl: 'https://script.google.com/macros/s/AKfycbwWNUtbfV4VKvsmbGyD4RWNUEVFdKwkk8bOsXuPdBkfgJ_-QFySGx0uJmfsBW5087mlPQ/exec',
         spreadsheetId: '1FJnBiWM5cuH0a1Yw0CxAR9zy_LiD1lVtQg9ijXRrPS4',
         config: {
             ...BASE_CONFIG,
-            eventName: "KEJOHANAN CATUR MSSD KOTA TINGGI 2025",
-            eventVenue: "Dewan SMK TUN HABAB",
+            eventName: "KEJOHANAN CATUR MSSD 2025",
+            eventVenue: "Dewan Sekolah",
             adminPhone: "60182046224"
         }
     }
 };
 
-// Logic to determine district from subdomain
 const getDistrictKey = (): string => {
-    // 1. Check for manual override in query string (useful for testing: ?district=muar)
+    const hostname = window.location.hostname;
     const params = new URLSearchParams(window.location.search);
     const districtParam = params.get('district');
+    
     if (districtParam && DISTRICTS[districtParam.toLowerCase()]) {
         return districtParam.toLowerCase();
     }
 
-    // 2. Check Hostname
-    const hostname = window.location.hostname;
-    
-    // If localhost, return default (or change this to 'muar' to test muar locally)
     if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
         return 'default';
     }
 
-    // Split hostname (e.g., muar.mydomain.com -> ['muar', 'mydomain', 'com'])
     const parts = hostname.split('.');
-    
     if (parts.length >= 2) {
         const subdomain = parts[0].toLowerCase();
-        // Handle 'www' edge case
         if (subdomain === 'www' && parts.length > 2) {
              const sub2 = parts[1].toLowerCase();
              if (DISTRICTS[sub2]) return sub2;
@@ -125,28 +114,32 @@ const getDistrictKey = (): string => {
 };
 
 const CURRENT_KEY = getDistrictKey();
-const CURRENT_DISTRICT = DISTRICTS[CURRENT_KEY];
+const CURRENT_DISTRICT = DISTRICTS[CURRENT_KEY] || DISTRICTS['default'];
 
-// --- EXPORTED FUNCTIONS ---
+const STORAGE_KEYS = {
+    scriptUrl: `webAppUrl_${CURRENT_KEY}`,
+    spreadsheetId: `spreadsheetId_${CURRENT_KEY}`,
+    config: `eventConfig_${CURRENT_KEY}`
+};
 
-// Prefer LocalStorage override if exists (for Setup Modal), otherwise use detected district config
 export const getScriptUrl = (): string => {
-  return localStorage.getItem('webAppUrl') || CURRENT_DISTRICT.scriptUrl;
+  const url = localStorage.getItem(STORAGE_KEYS.scriptUrl) || CURRENT_DISTRICT.scriptUrl;
+  return url ? url.trim() : '';
 };
 
 export const getSpreadsheetId = (): string => {
-    return localStorage.getItem('spreadsheetId') || CURRENT_DISTRICT.spreadsheetId;
+    const id = localStorage.getItem(STORAGE_KEYS.spreadsheetId) || CURRENT_DISTRICT.spreadsheetId;
+    return id ? id.trim() : '';
 };
 
 export const getEventConfig = (): EventConfig => {
-    const saved = localStorage.getItem('eventConfig');
+    const saved = localStorage.getItem(STORAGE_KEYS.config);
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
             return { 
-                ...CURRENT_DISTRICT.config, // Use district config as base
-                ...parsed, // Override with local changes
-                // Ensure deep objects exist
+                ...CURRENT_DISTRICT.config,
+                ...parsed,
                 schedules: parsed.schedules || CURRENT_DISTRICT.config.schedules,
             };
         } catch (e) {
@@ -157,10 +150,28 @@ export const getEventConfig = (): EventConfig => {
 };
 
 export const saveConfig = (spreadsheetId: string, webAppUrl: string, eventConfig?: EventConfig) => {
-    localStorage.setItem('spreadsheetId', spreadsheetId);
-    localStorage.setItem('webAppUrl', webAppUrl);
+    localStorage.setItem(STORAGE_KEYS.spreadsheetId, spreadsheetId.trim());
+    localStorage.setItem(STORAGE_KEYS.scriptUrl, webAppUrl.trim());
     if (eventConfig) {
-        localStorage.setItem('eventConfig', JSON.stringify(eventConfig));
+        localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(eventConfig));
+    }
+};
+
+/**
+ * Robustly constructs the URL with parameters, handling existing query strings.
+ */
+const buildUrl = (baseUrl: string, params: Record<string, string>) => {
+    try {
+        const url = new URL(baseUrl);
+        Object.entries(params).forEach(([key, value]) => {
+            url.searchParams.set(key, value);
+        });
+        return url.toString();
+    } catch (e) {
+        // Fallback for relative or malformed base URLs
+        const separator = baseUrl.includes('?') ? '&' : '?';
+        const query = new URLSearchParams(params).toString();
+        return `${baseUrl}${separator}${query}`;
     }
 };
 
@@ -168,38 +179,52 @@ export const loadRegistrations = async (): Promise<{ registrations?: Registratio
   const url = getScriptUrl();
   const sheetId = getSpreadsheetId();
   
-  if (!url || url.includes('REPLACE')) {
-      return { error: 'Configuration Missing: Script URL not set for this district.' };
+  if (!url || !url.startsWith('https://')) {
+      return { error: `Script URL tidak sah. Sila kemaskini di menu Setup.` };
+  }
+
+  if (!sheetId) {
+      return { error: "ID Spreadsheet tidak sah. Sila kemaskini di menu Setup." };
   }
 
   return new Promise((resolve, reject) => {
     const callbackName = 'googleSheetsCallback_' + Date.now();
     const windowAny = window as any;
 
-    windowAny[callbackName] = (data: any) => {
-      resolve(data);
+    const cleanup = () => {
       delete windowAny[callbackName];
       const script = document.getElementById(callbackName);
       if (script) script.remove();
     };
 
+    windowAny[callbackName] = (data: any) => {
+      resolve(data);
+      cleanup();
+    };
+
     const script = document.createElement('script');
     script.id = callbackName;
-    script.src = `${url}?action=load&callback=${callbackName}&spreadsheetId=${encodeURIComponent(sheetId)}`;
-    script.onerror = () => {
-      reject(new Error('Failed to load script. Check network or URL.'));
-      delete windowAny[callbackName];
-      script.remove();
+    const finalUrl = buildUrl(url, {
+        action: 'load',
+        callback: callbackName,
+        spreadsheetId: sheetId
+    });
+    
+    script.src = finalUrl;
+    console.debug(`[API] Memanggil: ${finalUrl}`);
+
+    script.onerror = (event) => {
+      console.error('[API] Script Load Error:', event);
+      reject(new Error('Gagal menghubungi pelayan Google. Sila pastikan Script URL telah di "Deploy" sebagai Web App dengan akses "Anyone".'));
+      cleanup();
     };
 
     document.head.appendChild(script);
 
     setTimeout(() => {
         if (windowAny[callbackName]) {
-            delete windowAny[callbackName];
-            const s = document.getElementById(callbackName);
-            if(s) s.remove();
-            reject(new Error('Timeout fetching data'));
+            reject(new Error('Masa tamat menunggu respon dari Google Sheets.'));
+            cleanup();
         }
     }, 15000);
   });
@@ -209,33 +234,45 @@ export const searchRemoteRegistration = async (regId: string, password: string):
     const url = getScriptUrl();
     const sheetId = getSpreadsheetId();
     
+    if (!url || !url.startsWith('https://')) {
+        throw new Error("URL Skrip tidak sah.");
+    }
+
     return new Promise((resolve, reject) => {
         const callbackName = 'searchCallback_' + Date.now();
         const windowAny = window as any;
 
-        windowAny[callbackName] = (data: any) => {
-            resolve(data);
+        const cleanup = () => {
             delete windowAny[callbackName];
             const script = document.getElementById(callbackName);
             if (script) script.remove();
         };
 
+        windowAny[callbackName] = (data: any) => {
+            resolve(data);
+            cleanup();
+        };
+
         const script = document.createElement('script');
         script.id = callbackName;
-        script.src = `${url}?action=search&regId=${encodeURIComponent(regId)}&password=${encodeURIComponent(password)}&callback=${callbackName}&spreadsheetId=${encodeURIComponent(sheetId)}`;
+        script.src = buildUrl(url, {
+            action: 'search',
+            regId: regId,
+            password: password,
+            callback: callbackName,
+            spreadsheetId: sheetId
+        });
+
         script.onerror = () => {
-            reject(new Error('Failed to search'));
-            delete windowAny[callbackName];
-            script.remove();
+            reject(new Error('Gagal melakukan carian. Sila semak sambungan internet.'));
+            cleanup();
         };
         document.head.appendChild(script);
 
         setTimeout(() => {
             if (windowAny[callbackName]) {
-                delete windowAny[callbackName];
-                const s = document.getElementById(callbackName);
-                if(s) s.remove();
-                reject(new Error('Timeout searching'));
+                reject(new Error('Masa tamat melakukan carian.'));
+                cleanup();
             }
         }, 10000);
     });
@@ -245,8 +282,8 @@ export const syncRegistration = async (regId: string, data: any, isUpdate = fals
   const url = getScriptUrl();
   const sheetId = getSpreadsheetId();
   
-  if (!url || url.includes('REPLACE')) {
-      throw new Error("Configuration incomplete for this district.");
+  if (!url || !url.startsWith('https://')) {
+      throw new Error("Konfigurasi sistem tidak lengkap.");
   }
 
   try {
@@ -270,6 +307,7 @@ export const syncRegistration = async (regId: string, data: any, isUpdate = fals
         },
         body: JSON.stringify(payload)
     });
+    return { success: true };
   } catch (error) {
     console.error("Sync error", error);
     throw error;

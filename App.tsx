@@ -47,16 +47,17 @@ function App() {
             localStorage.setItem('registrations', JSON.stringify(merged));
             showNotif("Data disegerakkan!", "success");
         } else if (result.error) {
-            console.warn("Sync warning:", result.error);
+            showNotif(result.error, "error");
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Sync failed", error);
+        showNotif(error.message || "Gagal menyegerak data cloud.", "error");
     }
   };
 
   const showNotif = (msg: string, type: 'success' | 'error') => {
       setNotification({ msg, type });
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 5000);
   };
 
   const handleRegistrationSuccess = (regId: string, data: any) => {
@@ -106,7 +107,7 @@ function App() {
 
       {/* Notifications */}
       {notification && (
-          <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded shadow-lg text-white font-medium animate-bounce ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+          <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded shadow-lg text-white font-medium max-w-sm transition-all animate-in slide-in-from-right ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
               {notification.msg}
           </div>
       )}

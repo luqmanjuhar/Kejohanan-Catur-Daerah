@@ -111,7 +111,8 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
                             <div className="text-xs font-semibold text-green-800 mb-1 text-left">Mengikut Bangsa:</div>
                             <div className="grid grid-cols-2 gap-1 text-xs text-left">
                                 {Object.entries(stats.counters.primary.race).map(([race, count]) => (
-                                    count > 0 && (
+                                    // Fix: Operator '>' cannot be applied to types 'unknown' and 'number'.
+                                    (count as number) > 0 && (
                                     <div key={race} className="flex justify-between bg-white/50 px-2 rounded">
                                         <span>{race}:</span> <span className="font-bold">{count}</span>
                                     </div>
@@ -145,7 +146,8 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
                                 <div className="text-xs font-semibold text-purple-800 mb-1 text-left">Mengikut Bangsa:</div>
                                 <div className="grid grid-cols-2 gap-1 text-xs text-left">
                                     {Object.entries(stats.counters.secondary.raceU15).map(([race, count]) => (
-                                        count > 0 && (
+                                        // Fix: Operator '>' cannot be applied to types 'unknown' and 'number'.
+                                        (count as number) > 0 && (
                                         <div key={race} className="flex justify-between bg-white/50 px-2 rounded">
                                             <span>{race}:</span> <span className="font-bold">{count}</span>
                                         </div>
@@ -171,7 +173,8 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
                                 <div className="text-xs font-semibold text-purple-800 mb-1 text-left">Mengikut Bangsa:</div>
                                 <div className="grid grid-cols-2 gap-1 text-xs text-left">
                                     {Object.entries(stats.counters.secondary.raceU18).map(([race, count]) => (
-                                        count > 0 && (
+                                        // Fix: Operator '>' cannot be applied to types 'unknown' and 'number'.
+                                        (count as number) > 0 && (
                                         <div key={race} className="flex justify-between bg-white/50 px-2 rounded">
                                             <span>{race}:</span> <span className="font-bold">{count}</span>
                                         </div>
@@ -221,7 +224,8 @@ const StatCard = ({ label, value, icon, color }: any) => {
     );
 };
 
-const SchoolListItem = ({ id, reg }: { id: string; reg: Registration }) => {
+// Fix: Type '{ key: string; id: string; reg: Registration; }' is not assignable to type '{ id: string; reg: Registration; }'.
+const SchoolListItem: React.FC<{ id: string; reg: Registration }> = ({ id, reg }) => {
     const [expanded, setExpanded] = React.useState(false);
 
     return (

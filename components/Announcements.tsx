@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { EventConfig, ScheduleDay as ScheduleDayType } from '../types';
 
@@ -105,7 +104,8 @@ const Announcements: React.FC<AnnouncementsProps> = ({ config }) => {
   );
 };
 
-const ScheduleDay = ({ date, events, color }: { date: string, events: any[], color: 'green' | 'purple' }) => {
+// Fix: Property 'key' does not exist on type '{ date: string; events: any[]; color: "green" | "purple"; }'.
+const ScheduleDay: React.FC<{ date: string; events: any[]; color: 'green' | 'purple' }> = ({ date, events, color }) => {
     const headerClass = color === 'green' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800';
     
     return (
