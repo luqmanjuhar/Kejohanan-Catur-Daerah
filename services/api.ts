@@ -1,163 +1,315 @@
 
-import { RegistrationsMap, EventConfig, ScheduleDay, DistrictConfig } from "../types";
+import { RegistrationsMap, EventConfig, ScheduleDay } from "../types";
 
-// --- KONFIGURASI RASMI PASIR GUDANG (HARDCODED) ---
-const PG_SS_ID = '1iKLf--vY8U75GuIewn1OJbNGFsDPDaqNk8njAAsUSU0';
-const PG_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHa79w-hI1uYyfvoW58KyelV4GIlH-5yEhpVwEqar2UMyoZgXJGZUXkRzJUOW7xawW/exec';
+// --- DEFAULT DATA TEMPLATES ---
 
-export const getDistrictKey = (): string => {
-  const hostname = window.location.hostname;
-  if (hostname.includes('mssdpasirgudang')) return 'mssdpasirgudang';
-  const parts = hostname.split('.');
-  return parts.length >= 2 ? parts[0].toLowerCase() : 'mssdpasirgudang';
-};
+const DEFAULT_SCHEDULE_PRIMARY: ScheduleDay[] = [
+  {
+    date: "HARI PERTAMA",
+    items: [
+      { time: "8.00 pagi", activity: "Pendaftaran" },
+      { time: "9.00 pagi", activity: "Pusingan 1" },
+      { time: "11.00 pagi", activity: "Pusingan 2" }
+    ]
+  }
+];
 
-const CURRENT_KEY = getDistrictKey();
+const DEFAULT_SCHEDULE_SECONDARY: ScheduleDay[] = [
+  {
+    date: "HARI PERTAMA",
+    items: [
+       { time: "8.00 pagi", activity: "Pendaftaran" },
+       { time: "9.00 pagi", activity: "Pusingan 1" }
+    ]
+  }
+];
 
-export const getScriptUrl = (): string => {
-  if (CURRENT_KEY === 'mssdpasirgudang') return PG_SCRIPT_URL;
-  const saved = localStorage.getItem(`scriptUrl_${CURRENT_KEY}`);
-  return saved || PG_SCRIPT_URL;
-};
-
-export const getSpreadsheetId = (): string => {
-  if (CURRENT_KEY === 'mssdpasirgudang') return PG_SS_ID;
-  const saved = localStorage.getItem(`spreadsheetId_${CURRENT_KEY}`);
-  return saved || PG_SS_ID;
-};
-
-/**
- * Fungsi JSONP untuk komunikasi rentas domain dengan Google Apps Script.
- */
-const jsonpRequest = (url: string, params: Record<string, string>): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    const callbackName = 'cb_' + Math.random().toString(36).substring(7);
-    const script = document.createElement('script');
-    
-    // Timer untuk timeout
-    const timeout = setTimeout(() => {
-        cleanup();
-        reject(new Error("Masa tamat (30s). Google Apps Script tidak merespon. Sila pastikan skrip dideploy sebagai 'Anyone'."));
-    }, 30000);
-
-    const cleanup = () => {
-      clearTimeout(timeout);
-      delete (window as any)[callbackName];
-      const s = document.getElementById(callbackName);
-      if (s) s.remove();
-    };
-
-    // Callback function
-    (window as any)[callbackName] = (data: any) => {
-      cleanup();
-      console.log("API Response received:", data);
-      if (data && data.error) reject(new Error(data.error));
-      else resolve(data);
-    };
-
-    // Menangani ralat muatan skrip
-    script.onerror = () => {
-      cleanup();
-      reject(new Error("Gagal menghubungi Google Apps Script. Pastikan URL betul dan Deployment disetkan sebagai 'Anyone'."));
-    };
-
-    // Bina URL lengkap dengan nocache t
-    const queryParams = { ...params, callback: callbackName, t: Date.now().toString() };
-    const queryString = Object.entries(queryParams)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&');
-    
-    script.id = callbackName;
-    script.src = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
-    script.async = true;
-
-    console.log("Fetching from Cloud:", script.src);
-    document.head.appendChild(script);
-  });
-};
-
-/**
- * Memuatkan semua data dari Google Sheets.
- */
-export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap, config?: EventConfig, error?: string }> => {
-  const ssId = getSpreadsheetId();
-  const scriptUrl = getScriptUrl();
-  
-  if (!ssId || !scriptUrl) return { error: "Konfigurasi ID atau URL tidak ditemui." };
-  
-  try {
-    const result = await jsonpRequest(scriptUrl, { 
-      action: 'loadAll', 
-      spreadsheetId: ssId 
-    });
-    return result;
-  } catch (e: any) {
-    console.error("LoadAllData Error:", e);
-    return { error: e.message || "Ralat tidak diketahui semasa memuatkan data." };
+const BASE_CONFIG: EventConfig = {
+  eventName: "KEJOHANAN CATUR MSSD",
+  eventVenue: "Dewan Sekolah",
+  adminPhone: "60123456789",
+  schedules: {
+    primary: DEFAULT_SCHEDULE_PRIMARY,
+    secondary: DEFAULT_SCHEDULE_SECONDARY
+  },
+  links: {
+    rules: "#",
+    results: "https://chess-results.com",
+    photos: "#"
+  },
+  documents: {
+    invitation: "#",
+    meeting: "#",
+    arbiter: "#"
   }
 };
 
-export const syncConfigToCloud = async (config: EventConfig) => {
-  const payload = {
-    action: 'saveConfig',
-    spreadsheetId: getSpreadsheetId(),
-    config: config
-  };
-  return fetch(getScriptUrl(), { 
-    method: 'POST', 
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload) 
-  });
+// --- DISTRICT CONFIGURATION DATABASE ---
+
+interface DistrictData {
+    scriptUrl: string;
+    spreadsheetId: string;
+    config: EventConfig;
+}
+
+const DISTRICTS: Record<string, DistrictData> = {
+    'mssdmuar': {
+        scriptUrl: 'https://script.google.com/macros/s/AKfycbwWNUtbfV4VKvsmbGyD4RWNUEVFdKwkk8bOsXuPdBkfgJ_-QFySGx0uJmfsBW5087mlPQ/exec',
+        spreadsheetId: '1FJnBiWM5cuH0a1Yw0CxAR9zy_LiD1lVtQg9ijXRrPS4',
+        config: {
+            ...BASE_CONFIG,
+            eventName: "KEJOHANAN CATUR MSSD MUAR 2025",
+            eventVenue: "Dewan SMK Tun Dr Ismail",
+            adminPhone: "60182046224"
+        }
+    },
+    'mssdpasirgudang': {
+        scriptUrl: '', // To be filled by user in Setup
+        spreadsheetId: '', // To be filled by user in Setup
+        config: {
+            ...BASE_CONFIG,
+            eventName: "KEJOHANAN CATUR MSSD PASIR GUDANG 2025",
+            eventVenue: "Dewan Sekolah Pasir Gudang",
+            adminPhone: "60123456789"
+        }
+    },
+    'default': {
+        scriptUrl: 'https://script.google.com/macros/s/AKfycbwWNUtbfV4VKvsmbGyD4RWNUEVFdKwkk8bOsXuPdBkfgJ_-QFySGx0uJmfsBW5087mlPQ/exec',
+        spreadsheetId: '1FJnBiWM5cuH0a1Yw0CxAR9zy_LiD1lVtQg9ijXRrPS4',
+        config: {
+            ...BASE_CONFIG,
+            eventName: "KEJOHANAN CATUR MSSD 2025",
+            eventVenue: "Dewan Sekolah",
+            adminPhone: "60182046224"
+        }
+    }
 };
 
-export const syncRegistration = async (regId: string, data: any, isUpdate = false) => {
-  const payload = {
-    action: isUpdate ? 'update' : 'submit',
-    registrationId: regId,
-    spreadsheetId: getSpreadsheetId(),
-    ...data
-  };
-  return fetch(getScriptUrl(), { 
-    method: 'POST', 
-    mode: 'no-cors', 
-    body: JSON.stringify(payload) 
+const getDistrictKey = (): string => {
+    const hostname = window.location.hostname;
+    const params = new URLSearchParams(window.location.search);
+    const districtParam = params.get('district');
+    
+    if (districtParam && DISTRICTS[districtParam.toLowerCase()]) {
+        return districtParam.toLowerCase();
+    }
+
+    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+        return 'default';
+    }
+
+    const parts = hostname.split('.');
+    if (parts.length >= 2) {
+        const subdomain = parts[0].toLowerCase();
+        if (subdomain === 'www' && parts.length > 2) {
+             const sub2 = parts[1].toLowerCase();
+             if (DISTRICTS[sub2]) return sub2;
+        }
+        if (DISTRICTS[subdomain]) {
+            return subdomain;
+        }
+    }
+
+    return 'default';
+};
+
+const CURRENT_KEY = getDistrictKey();
+const CURRENT_DISTRICT = DISTRICTS[CURRENT_KEY] || DISTRICTS['default'];
+
+const STORAGE_KEYS = {
+    scriptUrl: `webAppUrl_${CURRENT_KEY}`,
+    spreadsheetId: `spreadsheetId_${CURRENT_KEY}`,
+    config: `eventConfig_${CURRENT_KEY}`
+};
+
+export const getScriptUrl = (): string => {
+  const url = localStorage.getItem(STORAGE_KEYS.scriptUrl) || CURRENT_DISTRICT.scriptUrl;
+  return url ? url.trim() : '';
+};
+
+export const getSpreadsheetId = (): string => {
+    const id = localStorage.getItem(STORAGE_KEYS.spreadsheetId) || CURRENT_DISTRICT.spreadsheetId;
+    return id ? id.trim() : '';
+};
+
+export const getEventConfig = (): EventConfig => {
+    const saved = localStorage.getItem(STORAGE_KEYS.config);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            return { 
+                ...CURRENT_DISTRICT.config,
+                ...parsed,
+                schedules: parsed.schedules || CURRENT_DISTRICT.config.schedules,
+            };
+        } catch (e) {
+            return CURRENT_DISTRICT.config;
+        }
+    }
+    return CURRENT_DISTRICT.config;
+};
+
+export const saveConfig = (spreadsheetId: string, webAppUrl: string, eventConfig?: EventConfig) => {
+    localStorage.setItem(STORAGE_KEYS.spreadsheetId, spreadsheetId.trim());
+    localStorage.setItem(STORAGE_KEYS.scriptUrl, webAppUrl.trim());
+    if (eventConfig) {
+        localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(eventConfig));
+    }
+};
+
+/**
+ * Robustly constructs the URL with parameters, handling existing query strings.
+ */
+const buildUrl = (baseUrl: string, params: Record<string, string>) => {
+    try {
+        const url = new URL(baseUrl);
+        Object.entries(params).forEach(([key, value]) => {
+            url.searchParams.set(key, value);
+        });
+        return url.toString();
+    } catch (e) {
+        // Fallback for relative or malformed base URLs
+        const separator = baseUrl.includes('?') ? '&' : '?';
+        const query = new URLSearchParams(params).toString();
+        return `${baseUrl}${separator}${query}`;
+    }
+};
+
+export const loadRegistrations = async (): Promise<{ registrations?: RegistrationsMap, error?: string }> => {
+  const url = getScriptUrl();
+  const sheetId = getSpreadsheetId();
+  
+  if (!url || !url.startsWith('https://')) {
+      return { error: `Script URL tidak sah. Sila kemaskini di menu Setup.` };
+  }
+
+  if (!sheetId) {
+      return { error: "ID Spreadsheet tidak sah. Sila kemaskini di menu Setup." };
+  }
+
+  return new Promise((resolve, reject) => {
+    const callbackName = 'googleSheetsCallback_' + Date.now();
+    const windowAny = window as any;
+
+    const cleanup = () => {
+      delete windowAny[callbackName];
+      const script = document.getElementById(callbackName);
+      if (script) script.remove();
+    };
+
+    windowAny[callbackName] = (data: any) => {
+      resolve(data);
+      cleanup();
+    };
+
+    const script = document.createElement('script');
+    script.id = callbackName;
+    const finalUrl = buildUrl(url, {
+        action: 'load',
+        callback: callbackName,
+        spreadsheetId: sheetId
+    });
+    
+    script.src = finalUrl;
+    console.debug(`[API] Memanggil: ${finalUrl}`);
+
+    script.onerror = (event) => {
+      console.error('[API] Script Load Error:', event);
+      reject(new Error('Gagal menghubungi pelayan Google. Sila pastikan Script URL telah di "Deploy" sebagai Web App dengan akses "Anyone".'));
+      cleanup();
+    };
+
+    document.head.appendChild(script);
+
+    setTimeout(() => {
+        if (windowAny[callbackName]) {
+            reject(new Error('Masa tamat menunggu respon dari Google Sheets.'));
+            cleanup();
+        }
+    }, 15000);
   });
 };
 
 export const searchRemoteRegistration = async (regId: string, password: string): Promise<any> => {
-  return jsonpRequest(getScriptUrl(), {
-    action: 'search',
-    regId,
-    password,
-    spreadsheetId: getSpreadsheetId()
-  });
+    const url = getScriptUrl();
+    const sheetId = getSpreadsheetId();
+    
+    if (!url || !url.startsWith('https://')) {
+        throw new Error("URL Skrip tidak sah.");
+    }
+
+    return new Promise((resolve, reject) => {
+        const callbackName = 'searchCallback_' + Date.now();
+        const windowAny = window as any;
+
+        const cleanup = () => {
+            delete windowAny[callbackName];
+            const script = document.getElementById(callbackName);
+            if (script) script.remove();
+        };
+
+        windowAny[callbackName] = (data: any) => {
+            resolve(data);
+            cleanup();
+        };
+
+        const script = document.createElement('script');
+        script.id = callbackName;
+        script.src = buildUrl(url, {
+            action: 'search',
+            regId: regId,
+            password: password,
+            callback: callbackName,
+            spreadsheetId: sheetId
+        });
+
+        script.onerror = () => {
+            reject(new Error('Gagal melakukan carian. Sila semak sambungan internet.'));
+            cleanup();
+        };
+        document.head.appendChild(script);
+
+        setTimeout(() => {
+            if (windowAny[callbackName]) {
+                reject(new Error('Masa tamat melakukan carian.'));
+                cleanup();
+            }
+        }, 10000);
+    });
 };
 
-export const saveLocalConfig = (spreadsheetId: string, webAppUrl: string) => {
-    localStorage.setItem(`spreadsheetId_${CURRENT_KEY}`, spreadsheetId);
-    localStorage.setItem(`scriptUrl_${CURRENT_KEY}`, webAppUrl);
-};
-
-export const resetLocalConfig = () => {
-    localStorage.removeItem(`spreadsheetId_${CURRENT_KEY}`);
-    localStorage.removeItem(`scriptUrl_${CURRENT_KEY}`);
-    console.log("Pangkalan data local dibersihkan. Memuat semula...");
-    window.location.reload();
-};
-
-export const loadAllDistricts = async (): Promise<DistrictConfig[]> => {
-  const saved = localStorage.getItem('mssd_all_districts');
-  return saved ? JSON.parse(saved) : [];
-};
-
-export const saveDistrict = async (config: DistrictConfig): Promise<void> => {
-  const districts = await loadAllDistricts();
-  const index = districts.findIndex(d => d.id === config.id);
-  if (index > -1) {
-    districts[index] = config;
-  } else {
-    districts.push(config);
+export const syncRegistration = async (regId: string, data: any, isUpdate = false) => {
+  const url = getScriptUrl();
+  const sheetId = getSpreadsheetId();
+  
+  if (!url || !url.startsWith('https://')) {
+      throw new Error("Konfigurasi sistem tidak lengkap.");
   }
-  localStorage.setItem('mssd_all_districts', JSON.stringify(districts));
+
+  try {
+    const payload = {
+        action: isUpdate ? 'update' : 'submit',
+        registrationId: regId,
+        spreadsheetId: sheetId,
+        schoolName: data.schoolName,
+        schoolType: data.schoolType,
+        teachers: data.teachers,
+        students: data.students,
+        timestamp: new Date().toISOString(),
+        ...(isUpdate ? { originalCreatedAt: data.createdAt, updateTimestamp: new Date().toISOString() } : {})
+    };
+
+    await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Sync error", error);
+    throw error;
+  }
 };
