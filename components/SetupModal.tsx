@@ -33,7 +33,7 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
     try {
         const check = await validateCredentials(spreadsheetId, webAppUrl);
         if (!check.success) {
-            setError(check.error || "Gagal menyambung ke Cloud.");
+            setError(check.error || "Gagal menyambung ke Cloud. Pastikan Web App disetkan kepada 'Anyone'.");
             setIsSaving(false);
             return;
         }
@@ -43,7 +43,7 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
         onClose();
         window.location.reload(); 
     } catch (err: any) {
-        setError("Ralat semasa menyimpan ke Cloud.");
+        setError(err.message || "Ralat semasa menyimpan ke Cloud.");
     } finally {
         setIsSaving(false);
     }
@@ -81,30 +81,40 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
 
   const getScriptContent = () => {
     return `/**
- * Backend MSSD Catur v2.5 - Cloud Connector
- * Pasang skrip ini pada Google Apps Script & Deploy sebagai Web App.
+ * Backend MSSD Catur Pasir Gudang
+ * Versi 3.0 - Cloud Connector
  */
 function doGet(e) {
   const action = e.parameter.action;
   const ssId = e.parameter.spreadsheetId;
   const callback = e.parameter.callback;
+  
   try {
     const ss = SpreadsheetApp.openById(ssId);
     let result = {};
+    
     if (action === 'loadAll') {
-      result = { config: fetchRemoteConfig(ss), registrations: fetchRegistrations(ss) };
+      result = { 
+        config: fetchRemoteConfig(ss), 
+        registrations: fetchRegistrations(ss) 
+      };
     } else if (action === 'search') {
       result = searchRegistration(ss, e.parameter.regId, e.parameter.password);
     }
-    return ContentService.createTextOutput(callback + '(' + JSON.stringify(result) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+    
+    return ContentService.createTextOutput(callback + '(' + JSON.stringify(result) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+      
   } catch (err) {
-    return ContentService.createTextOutput(callback + '(' + JSON.stringify({ error: err.toString() }) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+    return ContentService.createTextOutput(callback + '(' + JSON.stringify({ error: "Sila pastikan anda telah Authorize skrip ini dan ID Sheet betul. Ralat: " + err.toString() }) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 }
 
 function doPost(e) {
   const data = JSON.parse(e.postData.contents);
   const ss = SpreadsheetApp.openById(data.spreadsheetId);
+  
   if (data.action === 'submit' || data.action === 'update') {
     return saveRegistration(ss, data);
   } else if (data.action === 'updateConfig') {
@@ -138,8 +148,10 @@ function saveRemoteConfig(ss, config) {
 function fetchRemoteConfig(ss) {
   const getVal = (sheetName) => {
     const sheet = ss.getSheetByName(sheetName);
-    return sheet ? sheet.getRange('A2:C2').getValues()[0] : ["#","#","#"];
+    const vals = sheet ? sheet.getRange('A2:C2').getValues()[0] : null;
+    return vals && vals[0] ? vals : ["#", "#", "#"];
   };
+  
   const info = getVal('INFO');
   const pautan = getVal('PAUTAN');
   const doc = getVal('DOKUMEN');
@@ -157,7 +169,7 @@ function fetchRemoteConfig(ss) {
   }
 
   return {
-    eventName: info[0] || "KEJOHANAN CATUR", eventVenue: info[1] || "LOKASI", adminPhone: info[2] || "60123",
+    eventName: info[0], eventVenue: info[1], adminPhone: info[2],
     schedules, links: { rules: pautan[0], results: pautan[1], photos: pautan[2] },
     documents: { invitation: doc[0], meeting: doc[1], arbiter: doc[2] }
   };
@@ -172,6 +184,7 @@ function fetchRegistrations(ss) {
   const registrations = {};
   for (let i = 1; i < schoolData.length; i++) {
     const id = schoolData[i][0];
+    if(!id) continue;
     registrations[id] = { schoolName: schoolData[i][1], schoolType: schoolData[i][2], teachers: [], students: [], createdAt: schoolData[i][10] };
   }
   for (let i = 1; i < teacherData.length; i++) {
@@ -191,13 +204,16 @@ function saveRegistration(ss, data) {
   const teacherSheet = getSheet('GURU');
   const studentSheet = getSheet('PELAJAR');
   const id = data.registrationId;
+  
   [schoolSheet, teacherSheet, studentSheet].forEach(sheet => {
     const vals = sheet.getDataRange().getValues();
     for (let i = vals.length - 1; i >= 1; i--) if (vals[i][0] === id) sheet.deleteRow(i + 1);
   });
+  
   schoolSheet.appendRow([id, data.schoolName, data.schoolType, data.teachers.length, data.students.length, 0, 0, 0, 0, 0, new Date(), new Date(), 'AKTIF']);
   data.teachers.forEach(t => teacherSheet.appendRow([id, data.schoolName, t.name, t.email, t.phone, t.position]));
   data.students.forEach(s => studentSheet.appendRow([id, data.schoolName, s.name, s.ic, s.gender, s.category, '', s.race, s.playerId]));
+  
   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 }
 

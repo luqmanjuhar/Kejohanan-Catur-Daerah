@@ -1,9 +1,9 @@
 
 import { RegistrationsMap, EventConfig, ScheduleDay } from "../types";
 
-// --- KONFIGURASI KHAS PASIR GUDANG ---
+// --- KREDENSIAL RASMI PASIR GUDANG ---
 const PG_SS_ID = '1iKLf--vY8U75GuIewn1OJbNGFsDPDaqNk8njAAsUSU0';
-const PG_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxSXMVdJFy-Ne1Ko8WGBJqXB6NZXjXq0gddry9EMKaHhxm1gnIv_jw8a4JEHX9B4MgZ/exec';
+const PG_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzSXMVdJFy-Ne1Ko8WGBJqXB6NZXjXq0gddry9EMKaHhxm1gnIv_jw8a4JEHX9B4MgZ/exec';
 
 const DEFAULT_SCHEDULE: ScheduleDay[] = [
   { date: "HARI PERTAMA", items: [{ time: "8.00 pagi", activity: "Pendaftaran" }] }
@@ -21,21 +21,19 @@ const BASE_CONFIG: EventConfig = {
 export const getDistrictKey = (): string => {
   const hostname = window.location.hostname;
   if (hostname.includes('mssdpasirgudang')) return 'mssdpasirgudang';
-  const parts = hostname.split('.');
-  if (parts.length >= 2) return parts[0].toLowerCase();
-  return 'mssdpasirgudang';
+  return 'mssdpasirgudang'; // Default to PG for this specific app
 };
 
 const CURRENT_KEY = getDistrictKey();
 
 export const getScriptUrl = (): string => {
-  if (CURRENT_KEY === 'mssdpasirgudang') return PG_SCRIPT_URL;
-  return localStorage.getItem(`scriptUrl_${CURRENT_KEY}`) || PG_SCRIPT_URL;
+  const saved = localStorage.getItem(`scriptUrl_${CURRENT_KEY}`);
+  return saved || PG_SCRIPT_URL;
 };
 
 export const getSpreadsheetId = (): string => {
-  if (CURRENT_KEY === 'mssdpasirgudang') return PG_SS_ID;
-  return localStorage.getItem(`spreadsheetId_${CURRENT_KEY}`) || PG_SS_ID;
+  const saved = localStorage.getItem(`spreadsheetId_${CURRENT_KEY}`);
+  return saved || PG_SS_ID;
 };
 
 export const getEventConfig = (): EventConfig => {
@@ -50,6 +48,9 @@ export const getEventConfig = (): EventConfig => {
   return BASE_CONFIG;
 };
 
+/**
+ * Mekanisme JSONP yang diperkukuh untuk komunikasi Cloud
+ */
 const jsonpRequest = (url: string, params: Record<string, string>): Promise<any> => {
   return new Promise((resolve, reject) => {
     const callbackName = 'cb_' + Math.random().toString(36).substring(7);
@@ -57,7 +58,7 @@ const jsonpRequest = (url: string, params: Record<string, string>): Promise<any>
     
     const timeout = setTimeout(() => {
         cleanup();
-        reject(new Error("Masa tamat. Skrip tidak merespon dalam 20 saat."));
+        reject(new Error("Masa tamat (20s). Skrip tidak merespon. Pastikan Web App disetkan kepada 'Anyone'."));
     }, 20000);
 
     const cleanup = () => {
@@ -75,7 +76,7 @@ const jsonpRequest = (url: string, params: Record<string, string>): Promise<any>
 
     script.onerror = () => {
       cleanup();
-      reject(new Error("Gagal memuatkan skrip API."));
+      reject(new Error("Gagal memuatkan skrip API. Sila pastikan Web App sudah di-'Deploy' dan akses disetkan kepada 'Anyone'."));
     };
 
     const queryParams = { ...params, callback: callbackName, t: Date.now().toString() };
@@ -96,7 +97,7 @@ export const validateCredentials = async (ssId: string, scriptUrl: string): Prom
         await jsonpRequest(scriptUrl, { action: 'loadAll', spreadsheetId: ssId });
         return { success: true };
     } catch (e: any) {
-        return { success: false, error: e.message || "Gagal menyambung ke Cloud." };
+        return { success: false, error: e.message };
     }
 };
 
@@ -108,6 +109,7 @@ export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap,
     if (result.config) localStorage.setItem(`eventConfig_${CURRENT_KEY}`, JSON.stringify(result.config));
     return result;
   } catch (e: any) {
+    console.error("API Error:", e);
     return { error: e.message };
   }
 };
