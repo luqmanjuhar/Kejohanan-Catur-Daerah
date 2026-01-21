@@ -29,26 +29,15 @@ export interface Registration {
 
 export type RegistrationsMap = Record<string, Registration>;
 
-export interface AppState {
-  registrations: RegistrationsMap;
-  lastSync: Date | null;
-  isLoading: boolean;
-  syncStatus: { message: string; type: 'success' | 'warning' | 'error' | 'info' } | null;
-}
-
-export interface GoogleSheetConfig {
+export interface DistrictConfig {
+  id: string; // e.g., 'mssdmuar'
+  name: string;
   spreadsheetId: string;
-  scriptUrl: string;
-}
-
-export interface ScheduleItem {
-  time: string;
-  activity: string;
-}
-
-export interface ScheduleDay {
-  date: string;
-  items: ScheduleItem[];
+  adminPhone: string;
+  venue: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  totalSchools?: number;
+  totalStudents?: number;
 }
 
 export interface EventConfig {
@@ -69,4 +58,14 @@ export interface EventConfig {
     meeting: string;
     arbiter: string;
   };
+}
+
+export interface ScheduleItem {
+  time: string;
+  activity: string;
+}
+
+export interface ScheduleDay {
+  date: string;
+  items: ScheduleItem[];
 }
