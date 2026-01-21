@@ -9,27 +9,29 @@ interface RegistrationFormProps {
   registrations: RegistrationsMap;
   onSuccess: (regId: string, data: any) => void;
   eventConfig: EventConfig;
+  draft: {
+    schoolName: string;
+    schoolType: string;
+    teachers: Teacher[];
+    students: Student[];
+  };
+  onDraftChange: (updated: any) => void;
 }
 
-const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSuccess, eventConfig }) => {
-  const [schoolName, setSchoolName] = useState('');
-  const [schoolType, setSchoolType] = useState('');
-  const [teachers, setTeachers] = useState<Teacher[]>([
-    { name: '', email: '', phone: '', position: 'Ketua' }
-  ]);
-  const [students, setStudents] = useState<Student[]>([
-    { name: '', ic: '', gender: '', race: '', category: '', playerId: '' }
-  ]);
+const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSuccess, eventConfig, draft, onDraftChange }) => {
   const [generatedRegId, setGeneratedRegId] = useState('');
   const [formErrors, setFormErrors] = useState<{teachers: Record<number, string[]>, students: Record<number, string[]>}>({
     teachers: {},
     students: {}
   });
 
+  const { schoolName, schoolType, teachers, students } = draft;
+
   // Automasi Kategori jika Sekolah Kebangsaan dipilih
   useEffect(() => {
     if (schoolType === 'Sekolah Kebangsaan') {
-      setStudents(prev => prev.map(s => ({ ...s, category: 'Bawah 12 Tahun' })));
+      const updatedStudents = students.map(s => ({ ...s, category: 'Bawah 12 Tahun' }));
+      onDraftChange({ ...draft, students: updatedStudents });
     }
   }, [schoolType]);
 
@@ -41,7 +43,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
   }, [students, registrations]);
 
   useEffect(() => {
-    setStudents(prev => prev.map((student, index) => {
+    const updatedStudents = students.map((student, index) => {
         if (student.category && student.gender && schoolName && generatedRegId) {
              const newId = generatePlayerId(student.gender, schoolName, index, student.category, generatedRegId);
              if (newId !== student.playerId) {
@@ -49,8 +51,14 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
              }
         }
         return student;
-    }));
-  }, [schoolName, generatedRegId]);
+    });
+    
+    // Check if any playerId actually changed before updating state to prevent loops
+    const hasChanged = updatedStudents.some((s, idx) => s.playerId !== students[idx].playerId);
+    if (hasChanged) {
+        onDraftChange({ ...draft, students: updatedStudents });
+    }
+  }, [schoolName, generatedRegId, students]);
 
   const validateForm = (): boolean => {
     const errors: any = { teachers: {}, students: {} };
@@ -71,7 +79,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
   };
 
   const handleSchoolNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSchoolName(formatSchoolName(e.target.value));
+    onDraftChange({ ...draft, schoolName: formatSchoolName(e.target.value) });
   };
 
   const handleTeacherChange = (index: number, field: keyof Teacher, value: string) => {
@@ -80,17 +88,17 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
     if (field === 'name') val = val.toUpperCase();
     if (field === 'phone') val = formatPhoneNumber(val);
     updated[index] = { ...updated[index], [field]: val };
-    setTeachers(updated);
+    onDraftChange({ ...draft, teachers: updated });
   };
 
   const addTeacher = () => {
-    setTeachers([...teachers, { name: '', email: '', phone: '', position: 'Pengiring' }]);
+    onDraftChange({ ...draft, teachers: [...teachers, { name: '', email: '', phone: '', position: 'Pengiring' }] });
   };
 
   const removeTeacher = (index: number) => {
     if (index === 0) return;
     const updated = teachers.filter((_, i) => i !== index);
-    setTeachers(updated);
+    onDraftChange({ ...draft, teachers: updated });
   };
 
   const handleStudentChange = (index: number, field: keyof Student, value: string) => {
@@ -101,7 +109,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
     
     if (field === 'ic') {
       val = formatIC(val);
-      // Logik Automasi Jantina berdasarkan IC (Digit terakhir)
       const digitsOnly = val.replace(/\D/g, '');
       if (digitsOnly.length === 12) {
         const lastDigit = parseInt(digitsOnly.charAt(11));
@@ -117,33 +124,33 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
        (updated[index] as any)[field] = val;
     }
     
-    // Trigger Player ID update
-    if (field === 'category' || field === 'gender' || field === 'ic') {
-        const student = updated[index];
-        if (student.category && student.gender && schoolName) {
-            const tempRegId = generateRegistrationId(student.category, registrations);
-            updated[index].playerId = generatePlayerId(student.gender, schoolName, index, student.category, tempRegId);
-        }
+    // Update player ID logic
+    const student = updated[index];
+    if (student.category && student.gender && schoolName) {
+        const tempRegId = generateRegistrationId(student.category, registrations);
+        updated[index].playerId = generatePlayerId(student.gender, schoolName, index, student.category, tempRegId);
     }
-    setStudents(updated);
+    
+    onDraftChange({ ...draft, students: updated });
   };
 
   const addStudent = () => {
     const defaultCategory = schoolType === 'Sekolah Kebangsaan' ? 'Bawah 12 Tahun' : '';
-    setStudents([...students, { name: '', ic: '', gender: '', race: '', category: defaultCategory, playerId: '' }]);
+    onDraftChange({ ...draft, students: [...students, { name: '', ic: '', gender: '', race: '', category: defaultCategory, playerId: '' }] });
   };
 
   const removeStudent = (index: number) => {
     const updated = students.filter((_, i) => i !== index);
-    setStudents(updated);
+    onDraftChange({ ...draft, students: updated });
   };
 
   const resetForm = () => {
-    setSchoolName('');
-    setSchoolType('');
-    setTeachers([{ name: '', email: '', phone: '', position: 'Ketua' }]);
-    setStudents([{ name: '', ic: '', gender: '', race: '', category: '', playerId: '' }]);
-    setGeneratedRegId('');
+    onDraftChange({
+        schoolName: '',
+        schoolType: '',
+        teachers: [{ name: '', email: '', phone: '', position: 'Ketua' }],
+        students: [{ name: '', ic: '', gender: '', race: '', category: '', playerId: '' }]
+    });
     setFormErrors({ teachers: {}, students: {} });
   };
 
@@ -177,11 +184,9 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
         await syncRegistration(regId, data, false);
         onSuccess(regId, data);
         sendWhatsAppNotification(regId, data, 'create', eventConfig.adminPhone);
-        resetForm();
     } catch (err) {
         alert("Pendaftaran disimpan secara lokal tetapi gagal disegerakkan ke awan. Sila semak sambungan.");
         onSuccess(regId, data);
-        resetForm();
     }
   };
 
@@ -206,7 +211,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
             <select
               required
               value={schoolType}
-              onChange={(e) => setSchoolType(e.target.value)}
+              onChange={(e) => onDraftChange({ ...draft, schoolType: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
             >
               <option value="">Pilih Jenis Sekolah</option>
@@ -382,7 +387,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
             onClick={resetForm}
             className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-bold shadow-md"
         >
-            <RefreshCw className="w-4 h-4" /> Reset
+            <RefreshCw className="w-4 h-4" /> Reset Borang
         </button>
         <button
             type="submit"

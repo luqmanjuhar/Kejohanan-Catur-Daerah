@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Copy, Check, AlertCircle, Loader2, Cloud, Info, Calendar, Link, FileText, Plus, Trash2 } from 'lucide-react';
-import { saveConfig, getSpreadsheetId, getScriptUrl, validateCredentials, getDistrictKey, getEventConfig, updateRemoteConfig } from '../services/api';
-import { EventConfig, ScheduleDay } from '../types';
+import { X, Save, Copy, Check, AlertCircle, Loader2, Cloud, Info, Calendar, Link, FileText, Plus, Trash2, RefreshCcw } from 'lucide-react';
+import { saveConfig, getSpreadsheetId, getScriptUrl, validateCredentials, getDistrictKey, getEventConfig, updateRemoteConfig, clearCachedCredentials } from '../services/api';
+import { EventConfig } from '../types';
 
 interface SetupModalProps {
   isOpen: boolean;
@@ -27,13 +27,20 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
+  const handleReset = () => {
+    if (confirm("Adakah anda pasti mahu memulihkan kredensial Pasir Gudang yang asal? Semua URL kustom akan dipadam.")) {
+        clearCachedCredentials();
+        window.location.reload();
+    }
+  };
+
   const handleSaveAll = async () => {
     setError(null);
     setIsSaving(true);
     try {
         const check = await validateCredentials(spreadsheetId, webAppUrl);
         if (!check.success) {
-            setError(check.error || "Gagal menyambung ke Cloud. Pastikan Web App disetkan kepada 'Anyone'.");
+            setError(check.error || "Gagal menyambung ke Cloud.");
             setIsSaving(false);
             return;
         }
@@ -81,40 +88,29 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
 
   const getScriptContent = () => {
     return `/**
- * Backend MSSD Catur Pasir Gudang
- * Versi 3.0 - Cloud Connector
+ * Backend MSSD Catur v3.5 - Pasir Gudang Edition
  */
 function doGet(e) {
   const action = e.parameter.action;
   const ssId = e.parameter.spreadsheetId;
   const callback = e.parameter.callback;
-  
   try {
     const ss = SpreadsheetApp.openById(ssId);
     let result = {};
-    
     if (action === 'loadAll') {
-      result = { 
-        config: fetchRemoteConfig(ss), 
-        registrations: fetchRegistrations(ss) 
-      };
+      result = { config: fetchRemoteConfig(ss), registrations: fetchRegistrations(ss) };
     } else if (action === 'search') {
       result = searchRegistration(ss, e.parameter.regId, e.parameter.password);
     }
-    
-    return ContentService.createTextOutput(callback + '(' + JSON.stringify(result) + ')')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-      
+    return ContentService.createTextOutput(callback + '(' + JSON.stringify(result) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   } catch (err) {
-    return ContentService.createTextOutput(callback + '(' + JSON.stringify({ error: "Sila pastikan anda telah Authorize skrip ini dan ID Sheet betul. Ralat: " + err.toString() }) + ')')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    return ContentService.createTextOutput(callback + '(' + JSON.stringify({ error: err.toString() }) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 }
 
 function doPost(e) {
   const data = JSON.parse(e.postData.contents);
   const ss = SpreadsheetApp.openById(data.spreadsheetId);
-  
   if (data.action === 'submit' || data.action === 'update') {
     return saveRegistration(ss, data);
   } else if (data.action === 'updateConfig') {
@@ -124,40 +120,33 @@ function doPost(e) {
 
 function saveRemoteConfig(ss, config) {
   const getSheet = (name) => ss.getSheetByName(name) || ss.insertSheet(name);
-  
   const infoSheet = getSheet('INFO');
   infoSheet.clear().appendRow(['Nama', 'Lokasi', 'Telefon Admin']);
   infoSheet.appendRow([config.eventName, config.eventVenue, config.adminPhone]);
-
   const pautanSheet = getSheet('PAUTAN');
   pautanSheet.clear().appendRow(['Peraturan', 'Keputusan', 'Gambar']);
   pautanSheet.appendRow([config.links.rules, config.links.results, config.links.photos]);
-
   const docSheet = getSheet('DOKUMEN');
   docSheet.clear().appendRow(['Jemputan', 'Mesyuarat', 'Arbiter']);
   docSheet.appendRow([config.documents.invitation, config.documents.meeting, config.documents.arbiter]);
-
   const jadualSheet = getSheet('JADUAL');
   jadualSheet.clear().appendRow(['Kategori', 'Hari', 'Masa', 'Aktiviti']);
   config.schedules.primary.forEach(day => day.items.forEach(item => jadualSheet.appendRow(['RENDAH', day.date, item.time, item.activity])));
   config.schedules.secondary.forEach(day => day.items.forEach(item => jadualSheet.appendRow(['MENENGAH', day.date, item.time, item.activity])));
-
   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function fetchRemoteConfig(ss) {
   const getVal = (sheetName) => {
     const sheet = ss.getSheetByName(sheetName);
-    const vals = sheet ? sheet.getRange('A2:C2').getValues()[0] : null;
-    return vals && vals[0] ? vals : ["#", "#", "#"];
+    const data = sheet ? sheet.getRange('A2:C2').getValues()[0] : null;
+    return data && data[0] ? data : ["#","#","#"];
   };
-  
   const info = getVal('INFO');
   const pautan = getVal('PAUTAN');
   const doc = getVal('DOKUMEN');
   const jadualSheet = ss.getSheetByName('JADUAL');
   const jadualData = jadualSheet ? jadualSheet.getDataRange().getValues() : [];
-  
   const schedules = { primary: [], secondary: [] };
   for (let i = 1; i < jadualData.length; i++) {
     const [cat, day, time, act] = jadualData[i];
@@ -167,7 +156,6 @@ function fetchRemoteConfig(ss) {
     if (!dayObj) { dayObj = { date: day, items: [] }; schedules[target].push(dayObj); }
     dayObj.items.push({ time, activity: act });
   }
-
   return {
     eventName: info[0], eventVenue: info[1], adminPhone: info[2],
     schedules, links: { rules: pautan[0], results: pautan[1], photos: pautan[2] },
@@ -184,7 +172,7 @@ function fetchRegistrations(ss) {
   const registrations = {};
   for (let i = 1; i < schoolData.length; i++) {
     const id = schoolData[i][0];
-    if(!id) continue;
+    if (!id) continue;
     registrations[id] = { schoolName: schoolData[i][1], schoolType: schoolData[i][2], teachers: [], students: [], createdAt: schoolData[i][10] };
   }
   for (let i = 1; i < teacherData.length; i++) {
@@ -204,16 +192,13 @@ function saveRegistration(ss, data) {
   const teacherSheet = getSheet('GURU');
   const studentSheet = getSheet('PELAJAR');
   const id = data.registrationId;
-  
   [schoolSheet, teacherSheet, studentSheet].forEach(sheet => {
     const vals = sheet.getDataRange().getValues();
     for (let i = vals.length - 1; i >= 1; i--) if (vals[i][0] === id) sheet.deleteRow(i + 1);
   });
-  
   schoolSheet.appendRow([id, data.schoolName, data.schoolType, data.teachers.length, data.students.length, 0, 0, 0, 0, 0, new Date(), new Date(), 'AKTIF']);
   data.teachers.forEach(t => teacherSheet.appendRow([id, data.schoolName, t.name, t.email, t.phone, t.position]));
   data.students.forEach(s => studentSheet.appendRow([id, data.schoolName, s.name, s.ic, s.gender, s.category, '', s.race, s.playerId]));
-  
   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -272,12 +257,28 @@ function searchRegistration(ss, id, pass) {
                     <div className="text-sm">
                         <p className="font-black text-red-800">Ralat Konfigurasi</p>
                         <p className="text-red-600 font-medium">{error}</p>
+                        <button onClick={handleReset} className="mt-2 text-xs font-black text-red-700 underline flex items-center gap-1">
+                            <RefreshCcw size={12}/> Klik di sini untuk Reset Kredensial (Cadangan)
+                        </button>
                     </div>
                 </div>
             )}
 
             {activeTab === 'cloud' && (
                 <div className="space-y-8 animate-fadeIn">
+                    <div className="bg-orange-50 border-2 border-orange-100 p-6 rounded-3xl mb-8">
+                        <h4 className="font-black text-orange-800 text-sm mb-2 flex items-center gap-2">
+                           <AlertCircle size={18}/> PANDUAN PENTING
+                        </h4>
+                        <ol className="text-xs text-orange-700 font-bold space-y-2 list-decimal ml-4">
+                            <li>Buka Google Sheet anda > Extensions > Apps Script.</li>
+                            <li>Tampal kod dari butang di bawah. <b>Klik Save & Run (Authorize).</b></li>
+                            <li>Klik <b>Deploy > New Deployment</b>.</li>
+                            <li>Setkan Type kepada <b>Web App</b>.</li>
+                            <li>Setkan "Who has access" kepada <b>Anyone</b> (PUNCA UTAMA RALAT JIKA TIDAK DIBUAT).</li>
+                        </ol>
+                    </div>
+
                     <div className="grid md:grid-cols-2 gap-8">
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-[0.2em]">Spreadsheet ID</label>
@@ -288,18 +289,21 @@ function searchRegistration(ss, id, pass) {
                             <input type="text" value={webAppUrl} onChange={(e) => setWebAppUrl(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all font-mono text-xs" />
                         </div>
                     </div>
-                    <div className="bg-indigo-50/50 p-8 rounded-[2rem] border-2 border-indigo-100/50">
-                        <div className="flex justify-between items-center mb-6">
-                            <h4 className="text-indigo-900 font-black text-sm tracking-tight flex items-center gap-2">
-                                <FileText size={20} className="text-indigo-600"/> TEMPLATE BACKEND SCRIPT
-                            </h4>
-                            <button onClick={() => { navigator.clipboard.writeText(getScriptContent()); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-black text-[10px] flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all uppercase">
-                                {copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'Berjaya Disalin' : 'Salin Skrip'}
-                            </button>
+                    
+                    <div className="flex gap-4">
+                        <div className="flex-1 bg-indigo-50/50 p-8 rounded-[2rem] border-2 border-indigo-100/50">
+                            <div className="flex justify-between items-center mb-6">
+                                <h4 className="text-indigo-900 font-black text-sm tracking-tight flex items-center gap-2">
+                                    <FileText size={20} className="text-indigo-600"/> TEMPLATE BACKEND SCRIPT
+                                </h4>
+                                <button onClick={() => { navigator.clipboard.writeText(getScriptContent()); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-black text-[10px] flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all uppercase">
+                                    {copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'Berjaya Disalin' : 'Salin Skrip'}
+                                </button>
+                            </div>
+                            <p className="text-xs text-indigo-500/80 leading-relaxed font-bold">
+                                Gunakan versi 3.5 untuk kestabilan maksimum. Pastikan anda "Deploy" semula Web App selepas mengemaskini kod dalam Apps Script.
+                            </p>
                         </div>
-                        <p className="text-xs text-indigo-500/80 leading-relaxed font-bold">
-                            Salin kod di atas dan tampal ke dalam Extensions &gt; Apps Script di Google Sheet anda. <br/>Pastikan anda Deploy sebagai "Web App" dan beri akses kepada "Anyone".
-                        </p>
                     </div>
                 </div>
             )}
@@ -395,10 +399,9 @@ function searchRegistration(ss, id, pass) {
 
         {/* Footer */}
         <div className="p-8 bg-gray-50 flex justify-between items-center border-t border-gray-100">
-            <div className="flex items-center gap-2 text-gray-400">
-                <AlertCircle size={14}/>
-                <p className="text-[10px] font-bold uppercase tracking-wider">Perubahan akan disimpan terus ke Google Spreadsheet anda.</p>
-            </div>
+            <button onClick={handleReset} className="flex items-center gap-2 text-xs font-black text-gray-400 hover:text-red-500 transition-colors uppercase tracking-widest">
+                <RefreshCcw size={14}/> Reset Credentials
+            </button>
             <div className="flex gap-4">
                 <button onClick={onClose} className="px-8 py-3 font-black text-gray-400 hover:text-gray-600 transition-colors uppercase text-xs">Batal</button>
                 <button onClick={handleSaveAll} disabled={isSaving} className="px-10 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-xl shadow-orange-100 flex items-center gap-3 disabled:bg-orange-300 hover:bg-orange-700 transition-all transform active:scale-95 uppercase text-xs tracking-widest">

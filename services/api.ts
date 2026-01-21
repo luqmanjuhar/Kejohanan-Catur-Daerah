@@ -1,9 +1,9 @@
 
 import { RegistrationsMap, EventConfig, ScheduleDay } from "../types";
 
-// --- KREDENSIAL RASMI PASIR GUDANG ---
-const PG_SS_ID = '1iKLf--vY8U75GuIewn1OJbNGFsDPDaqNk8njAAsUSU0';
-const PG_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzSXMVdJFy-Ne1Ko8WGBJqXB6NZXjXq0gddry9EMKaHhxm1gnIv_jw8a4JEHX9B4MgZ/exec';
+// --- KREDENSIAL RASMI PASIR GUDANG (TERKINI) ---
+const PG_SS_ID = '1fzAo5ZLVS_Bt7ZYg2QE1jolakE_99gL42IBW5x2e890';
+const PG_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwQt4Xm-dp_nyrUfX0UiHwdRxbxCwPbdhoKL6PpSqEGQBDvAPubFsT8aoP81dXucmdN/exec';
 
 const DEFAULT_SCHEDULE: ScheduleDay[] = [
   { date: "HARI PERTAMA", items: [{ time: "8.00 pagi", activity: "Pendaftaran" }] }
@@ -18,11 +18,7 @@ const BASE_CONFIG: EventConfig = {
   documents: { invitation: "#", meeting: "#", arbiter: "#" }
 };
 
-export const getDistrictKey = (): string => {
-  const hostname = window.location.hostname;
-  if (hostname.includes('mssdpasirgudang')) return 'mssdpasirgudang';
-  return 'mssdpasirgudang'; // Default to PG for this specific app
-};
+export const getDistrictKey = (): string => 'mssdpasirgudang';
 
 const CURRENT_KEY = getDistrictKey();
 
@@ -34,6 +30,12 @@ export const getScriptUrl = (): string => {
 export const getSpreadsheetId = (): string => {
   const saved = localStorage.getItem(`spreadsheetId_${CURRENT_KEY}`);
   return saved || PG_SS_ID;
+};
+
+export const clearCachedCredentials = () => {
+  localStorage.removeItem(`scriptUrl_${CURRENT_KEY}`);
+  localStorage.removeItem(`spreadsheetId_${CURRENT_KEY}`);
+  localStorage.removeItem(`eventConfig_${CURRENT_KEY}`);
 };
 
 export const getEventConfig = (): EventConfig => {
@@ -48,17 +50,22 @@ export const getEventConfig = (): EventConfig => {
   return BASE_CONFIG;
 };
 
-/**
- * Mekanisme JSONP yang diperkukuh untuk komunikasi Cloud
- */
 const jsonpRequest = (url: string, params: Record<string, string>): Promise<any> => {
   return new Promise((resolve, reject) => {
+    // Validasi URL
+    if (!url || !url.startsWith('https://script.google.com')) {
+      reject(new Error("URL Skrip tidak sah. Ia mestilah bermula dengan script.google.com"));
+      return;
+    }
+
     const callbackName = 'cb_' + Math.random().toString(36).substring(7);
     const script = document.createElement('script');
     
+    console.log(`[Cloud Connect] Memanggil: ${url}`);
+
     const timeout = setTimeout(() => {
         cleanup();
-        reject(new Error("Masa tamat (20s). Skrip tidak merespon. Pastikan Web App disetkan kepada 'Anyone'."));
+        reject(new Error("Masa tamat (20s). Skrip tidak merespon. Sila pastikan Web App disetkan kepada 'Anyone' di Apps Script."));
     }, 20000);
 
     const cleanup = () => {
@@ -76,7 +83,8 @@ const jsonpRequest = (url: string, params: Record<string, string>): Promise<any>
 
     script.onerror = () => {
       cleanup();
-      reject(new Error("Gagal memuatkan skrip API. Sila pastikan Web App sudah di-'Deploy' dan akses disetkan kepada 'Anyone'."));
+      console.error("[Cloud Connect] Gagal memuatkan skrip tag.");
+      reject(new Error("Gagal memuatkan skrip API. Punca: URL salah, Web App belum di-'Deploy', atau akses belum disetkan kepada 'Anyone'."));
     };
 
     const queryParams = { ...params, callback: callbackName, t: Date.now().toString() };
@@ -92,7 +100,6 @@ const jsonpRequest = (url: string, params: Record<string, string>): Promise<any>
 };
 
 export const validateCredentials = async (ssId: string, scriptUrl: string): Promise<{ success: boolean; error?: string }> => {
-    if (!ssId || !scriptUrl) return { success: false, error: "ID Spreadsheet dan URL Skrip diperlukan." };
     try {
         await jsonpRequest(scriptUrl, { action: 'loadAll', spreadsheetId: ssId });
         return { success: true };
@@ -109,7 +116,6 @@ export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap,
     if (result.config) localStorage.setItem(`eventConfig_${CURRENT_KEY}`, JSON.stringify(result.config));
     return result;
   } catch (e: any) {
-    console.error("API Error:", e);
     return { error: e.message };
   }
 };
