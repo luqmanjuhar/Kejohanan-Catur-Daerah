@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Copy, Check, Database, Info, Calendar, Link as LinkIcon, FileText, Plus, Trash2 } from 'lucide-react';
-import { saveLocalConfig, syncConfigToCloud, getSpreadsheetId, getScriptUrl } from '../services/api';
-import { EventConfig, ScheduleDay } from '../types';
+import { X, Save, Copy, Check, Database, Trash2, RefreshCcw, Plus } from 'lucide-react';
+import { saveLocalConfig, syncConfigToCloud, getSpreadsheetId, getScriptUrl, resetLocalConfig, getDistrictKey } from '../services/api';
+import { EventConfig } from '../types';
 
 interface SetupModalProps {
   isOpen: boolean;
@@ -31,12 +31,13 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose, currentConfig 
     try {
         saveLocalConfig(spreadsheetId, webAppUrl);
         await syncConfigToCloud(eventConfig);
-        alert("Tahniah! Tetapan berjaya disimpan ke Cloud Google Sheets.");
+        alert("Tahniah! Tetapan berjaya disimpan ke Cloud.");
         onClose();
         window.location.reload(); 
     } catch (e) {
-        alert("Gagal menyegerak ke Cloud. Sila pastikan URL Skrip betul.");
-        console.error(e);
+        alert("Simpanan Tempatan Berjaya, tetapi gagal menyegerak ke Cloud. Sila pastikan URL Skrip betul.");
+        onClose();
+        window.location.reload(); 
     } finally {
         setIsSaving(false);
     }
@@ -84,8 +85,8 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose, currentConfig 
 
   const getScriptContent = () => {
     return `/**
- * MSSD Catur - DATABASE ENGINE v4.0 (Pasir Gudang Edition)
- * Pastikan ID Spreadsheet: ${spreadsheetId || 'PASTE_ID_HERE'}
+ * MSSD Catur - DATABASE ENGINE v4.1 (Pasir Gudang Edition)
+ * Deployment: Execute as 'Me', Access 'Anyone'.
  */
 
 function doGet(e) {
@@ -93,7 +94,7 @@ function doGet(e) {
   const callback = e.parameter.callback;
   const ssId = e.parameter.spreadsheetId;
   
-  if (!ssId) return createResponse({error: "No SSID"}, callback);
+  if (!ssId) return createResponse({error: "No SSID Provided"}, callback);
   
   try {
     const ss = SpreadsheetApp.openById(ssId);
@@ -111,7 +112,7 @@ function doGet(e) {
     
     return createResponse(result, callback);
   } catch (err) {
-    return createResponse({error: err.toString()}, callback);
+    return createResponse({error: "Database Error: " + err.toString()}, callback);
   }
 }
 
@@ -223,7 +224,8 @@ function setMap(ss, name, obj) {
 }
 
 function loadRegistrations(ss) {
-  const schoolData = ss.getSheetByName('SEKOLAH').getDataRange().getValues();
+  const schoolSheet = ss.getSheetByName('SEKOLAH');
+  const schoolData = schoolSheet.getDataRange().getValues();
   const teacherData = ss.getSheetByName('GURU').getDataRange().getValues();
   const studentData = ss.getSheetByName('PELAJAR').getDataRange().getValues();
   const regs = {};
@@ -278,7 +280,10 @@ function searchRegistration(ss, regId, password) {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] shadow-2xl overflow-hidden animate-scaleIn flex flex-col">
         <div className="p-6 bg-orange-600 text-white flex justify-between items-center shrink-0">
-            <h2 className="text-xl font-bold flex items-center gap-2">⚙️ Tetapan Pangkalan Data & Acara</h2>
+            <div>
+                <h2 className="text-xl font-bold flex items-center gap-2">⚙️ Tetapan Daerah: {getDistrictKey().toUpperCase()}</h2>
+                <p className="text-[10px] opacity-80 mt-1">Konfigurasi Pangkalan Data Cloud Google Sheets</p>
+            </div>
             <button onClick={onClose} className="hover:bg-white/20 p-1 rounded transition-colors"><X /></button>
         </div>
 
@@ -293,20 +298,23 @@ function searchRegistration(ss, regId, password) {
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
             {activeTab === 'system' && (
                 <div className="space-y-4">
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3 items-start">
-                        <Database className="text-blue-600 mt-1" />
+                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 flex gap-3 items-start">
+                        <Database className="text-orange-600 mt-1" />
                         <div>
-                            <h4 className="font-bold text-blue-800">Sambungan Google Sheets (Pasir Gudang)</h4>
-                            <p className="text-xs text-blue-600">ID dan URL ini menghubungkan aplikasi ke pengurus data anda.</p>
+                            <h4 className="font-bold text-orange-800">Status Sambungan</h4>
+                            <p className="text-xs text-orange-600">ID Pasir Gudang dikesan secara automatik.</p>
+                            <button onClick={resetLocalConfig} className="mt-2 text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded font-bold hover:bg-red-200 flex items-center gap-1">
+                                <RefreshCcw size={10} /> Reset Pangkalan Data (Clear Cache)
+                            </button>
                         </div>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Spreadsheet ID</label>
-                        <input value={spreadsheetId} onChange={e => setSpreadsheetId(e.target.value)} className="w-full p-3 border rounded-xl bg-gray-50 font-mono text-sm" />
+                        <input value={spreadsheetId} onChange={e => setSpreadsheetId(e.target.value)} className="w-full p-3 border rounded-xl bg-gray-50 font-mono text-sm" placeholder="Contoh: 1iKLf...USU0" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Script Web App URL</label>
-                        <input value={webAppUrl} onChange={e => setWebAppUrl(e.target.value)} className="w-full p-3 border rounded-xl bg-gray-50 font-mono text-sm" />
+                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Script Web App URL (Wajib berakhir dengan /exec)</label>
+                        <input value={webAppUrl} onChange={e => setWebAppUrl(e.target.value)} className="w-full p-3 border rounded-xl bg-gray-50 font-mono text-sm" placeholder="https://script.google.com/macros/s/.../exec" />
                     </div>
                     <div className="bg-gray-900 rounded-xl p-4">
                         <div className="flex justify-between items-center mb-2">
@@ -344,25 +352,25 @@ function searchRegistration(ss, regId, password) {
                     {['primary', 'secondary'].map((type: any) => (
                         <div key={type} className="bg-gray-50 p-4 rounded-xl border">
                             <div className="flex justify-between items-center mb-4">
-                                <h4 className="font-bold text-gray-700 uppercase">{type === 'primary' ? 'Sekolah Rendah' : 'Sekolah Menengah'}</h4>
-                                <button onClick={() => addScheduleDay(type)} className="text-xs bg-orange-600 text-white px-2 py-1 rounded">Tambah Hari</button>
+                                <h4 className="font-bold text-gray-700 uppercase text-xs">{type === 'primary' ? 'Sekolah Rendah' : 'Sekolah Menengah'}</h4>
+                                <button onClick={() => addScheduleDay(type)} className="text-[10px] bg-orange-600 text-white px-2 py-1 rounded font-bold">Tambah Hari</button>
                             </div>
                             {eventConfig.schedules[type as 'primary' | 'secondary'].map((day, dIdx) => (
-                                <div key={dIdx} className="mb-6 p-3 bg-white border rounded-lg shadow-sm space-y-2">
+                                <div key={dIdx} className="mb-4 p-3 bg-white border rounded-lg shadow-sm space-y-2">
                                     <div className="flex justify-between">
-                                        <input value={day.date} onChange={e => updateSchedule(type, dIdx, null, 'date', e.target.value)} className="flex-1 p-2 font-bold border-b border-orange-100 outline-none" placeholder="Tarikh / Hari" />
-                                        <button onClick={() => removeScheduleDay(type, dIdx)} className="text-red-400 p-1"><Trash2 size={16}/></button>
+                                        <input value={day.date} onChange={e => updateSchedule(type, dIdx, null, 'date', e.target.value)} className="flex-1 p-1 font-bold border-b text-xs outline-none" placeholder="Tarikh / Hari" />
+                                        <button onClick={() => removeScheduleDay(type, dIdx)} className="text-red-400 p-1"><Trash2 size={14}/></button>
                                     </div>
-                                    <div className="space-y-2 pl-2">
+                                    <div className="space-y-1">
                                         {day.items.map((item, iIdx) => (
-                                            <div key={iIdx} className="flex gap-2 items-center">
-                                                <input value={item.time} onChange={e => updateSchedule(type, dIdx, iIdx, 'time', e.target.value)} className="w-24 p-1 text-xs border rounded" placeholder="Masa" />
-                                                <input value={item.activity} onChange={e => updateSchedule(type, dIdx, iIdx, 'activity', e.target.value)} className="flex-1 p-1 text-xs border rounded" placeholder="Aktiviti" />
-                                                <button onClick={() => removeScheduleItem(type, dIdx, iIdx)} className="text-red-300 hover:text-red-500"><Trash2 size={14}/></button>
+                                            <div key={iIdx} className="flex gap-1 items-center">
+                                                <input value={item.time} onChange={e => updateSchedule(type, dIdx, iIdx, 'time', e.target.value)} className="w-16 p-1 text-[10px] border rounded" placeholder="Masa" />
+                                                <input value={item.activity} onChange={e => updateSchedule(type, dIdx, iIdx, 'activity', e.target.value)} className="flex-1 p-1 text-[10px] border rounded" placeholder="Aktiviti" />
+                                                <button onClick={() => removeScheduleItem(type, dIdx, iIdx)} className="text-red-300"><Trash2 size={12}/></button>
                                             </div>
                                         ))}
-                                        <button onClick={() => addScheduleItem(type, dIdx)} className="text-xs text-orange-600 font-bold flex items-center gap-1 hover:underline pt-1">
-                                            <Plus size={14} /> Tambah Aktiviti
+                                        <button onClick={() => addScheduleItem(type, dIdx)} className="text-[10px] text-orange-600 font-bold flex items-center gap-1 hover:underline pt-1">
+                                            <Plus size={10} /> Tambah Aktiviti
                                         </button>
                                     </div>
                                 </div>
