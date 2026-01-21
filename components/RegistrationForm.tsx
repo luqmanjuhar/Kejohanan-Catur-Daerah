@@ -27,7 +27,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
 
   const { schoolName, schoolType, teachers, students } = draft;
 
-  // Automasi Kategori jika Sekolah Kebangsaan dipilih
   useEffect(() => {
     if (schoolType === 'Sekolah Kebangsaan') {
       const updatedStudents = students.map(s => ({ ...s, category: 'Bawah 12 Tahun' }));
@@ -53,7 +52,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
         return student;
     });
     
-    // Check if any playerId actually changed before updating state to prevent loops
     const hasChanged = updatedStudents.some((s, idx) => s.playerId !== students[idx].playerId);
     if (hasChanged) {
         onDraftChange({ ...draft, students: updatedStudents });
@@ -67,7 +65,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
     teachers.forEach((t, i) => {
       const tErrors = [];
       if (!isValidEmail(t.email)) tErrors.push('Email tidak sah');
-      if (!isValidMalaysianPhone(t.phone)) tErrors.push('No. Telefon tidak sah (Format: 01x-xxxxxxx)');
+      if (!isValidMalaysianPhone(t.phone)) tErrors.push('No. Telefon tidak sah');
       if (tErrors.length > 0) {
         errors.teachers[i] = tErrors;
         hasError = true;
@@ -124,7 +122,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
        (updated[index] as any)[field] = val;
     }
     
-    // Update player ID logic
     const student = updated[index];
     if (student.category && student.gender && schoolName) {
         const tempRegId = generateRegistrationId(student.category, registrations);
@@ -145,23 +142,23 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
   };
 
   const resetForm = () => {
-    onDraftChange({
-        schoolName: '',
-        schoolType: '',
-        teachers: [{ name: '', email: '', phone: '', position: 'Ketua' }],
-        students: [{ name: '', ic: '', gender: '', race: '', category: '', playerId: '' }]
-    });
-    setFormErrors({ teachers: {}, students: {} });
+    if (confirm("Kosongkan semua data dalam borang ini?")) {
+        onDraftChange({
+            schoolName: '',
+            schoolType: '',
+            teachers: [{ name: '', email: '', phone: '', position: 'Ketua' }],
+            students: [{ name: '', ic: '', gender: '', race: '', category: '', playerId: '' }]
+        });
+        setFormErrors({ teachers: {}, students: {} });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
-      alert("Sila betulkan ralat pada borang sebelum menghantar.");
+      alert("Sila betulkan ralat pada borang.");
       return;
     }
-
     if (students.length === 0) {
         alert("Sila tambah sekurang-kurangnya seorang pelajar.");
         return;
@@ -169,50 +166,40 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
 
     const firstCategory = students[0].category;
     const regId = generateRegistrationId(firstCategory, registrations);
-
-    const data = {
-        schoolName,
-        schoolType,
-        teachers,
-        students,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'AKTIF'
-    };
+    const data = { schoolName, schoolType, teachers, students, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), status: 'AKTIF' };
 
     try {
         await syncRegistration(regId, data, false);
         onSuccess(regId, data);
         sendWhatsAppNotification(regId, data, 'create', eventConfig.adminPhone);
     } catch (err) {
-        alert("Pendaftaran disimpan secara lokal tetapi gagal disegerakkan ke awan. Sila semak sambungan.");
-        onSuccess(regId, data);
+        alert("Pendaftaran gagal dihantar ke Cloud. Sila semak sambungan internet anda.");
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-        <h3 className="text-xl font-semibold text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Maklumat Sekolah</h3>
+    <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+      <section className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h3 className="text-lg md:text-xl font-black text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Maklumat Sekolah</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-gray-700 font-medium mb-2">Nama Sekolah *</label>
+            <label className="block text-gray-700 font-bold text-xs md:text-sm mb-2 uppercase">Nama Sekolah *</label>
             <input
               type="text"
               required
               value={schoolName}
               onChange={handleSchoolNameChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+              className="w-full px-4 py-3 md:py-2 border-2 border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none text-sm"
               placeholder="Contoh: SK Taman Desa"
             />
           </div>
           <div>
-            <label className="block text-gray-700 font-medium mb-2">Jenis Sekolah *</label>
+            <label className="block text-gray-700 font-bold text-xs md:text-sm mb-2 uppercase">Jenis Sekolah *</label>
             <select
               required
               value={schoolType}
               onChange={(e) => onDraftChange({ ...draft, schoolType: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+              className="w-full px-4 py-3 md:py-2 border-2 border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none text-sm bg-white"
             >
               <option value="">Pilih Jenis Sekolah</option>
               <option value="Sekolah Kebangsaan">Sekolah Kebangsaan</option>
@@ -225,21 +212,21 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
         </div>
       </section>
 
-      <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-        <h3 className="text-xl font-semibold text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Maklumat Guru</h3>
+      <section className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h3 className="text-lg md:text-xl font-black text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Maklumat Guru</h3>
         {teachers.map((teacher, index) => (
-          <div key={index} className="bg-orange-50 p-4 rounded-lg mb-4 relative border border-orange-100">
-             <div className="flex justify-between mb-2">
-                <h4 className="font-semibold text-orange-800 text-sm">
+          <div key={index} className="bg-orange-50/50 p-4 rounded-xl mb-4 relative border border-orange-100">
+             <div className="flex justify-between mb-3 items-center">
+                <h4 className="font-black text-orange-800 text-[10px] uppercase tracking-widest">
                     {index === 0 ? 'Guru 1 (Ketua)' : `Guru ${index + 1} (Pengiring)`}
                 </h4>
                 {index > 0 && (
-                    <button type="button" onClick={() => removeTeacher(index)} className="text-red-500 hover:text-red-700">
+                    <button type="button" onClick={() => removeTeacher(index)} className="text-red-500 hover:text-red-700 bg-white p-1.5 rounded-lg shadow-sm">
                         <Trash2 className="w-4 h-4" />
                     </button>
                 )}
              </div>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                <div>
                   <input
                     type="text"
@@ -247,38 +234,28 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
                     placeholder="Nama Guru"
                     value={teacher.name}
                     onChange={(e) => handleTeacherChange(index, 'name', e.target.value)}
-                    className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-orange-300 outline-none"
+                    className="w-full px-4 py-3 md:py-2 border-2 border-white rounded-xl focus:ring-2 focus:ring-orange-300 outline-none text-sm bg-white shadow-sm"
                   />
                </div>
                <div>
                   <input
                     type="email"
                     required
-                    placeholder="Email (e.g. guru@email.com)"
+                    placeholder="Email"
                     value={teacher.email}
                     onChange={(e) => handleTeacherChange(index, 'email', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:ring-orange-300 outline-none ${formErrors.teachers[index]?.includes('Email tidak sah') ? 'border-red-500 bg-red-50' : ''}`}
+                    className={`w-full px-4 py-3 md:py-2 border-2 rounded-xl focus:ring-2 focus:ring-orange-300 outline-none text-sm bg-white shadow-sm ${formErrors.teachers[index]?.includes('Email tidak sah') ? 'border-red-500' : 'border-white'}`}
                   />
-                  {formErrors.teachers[index]?.includes('Email tidak sah') && (
-                    <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-bold">
-                      <AlertCircle size={10} /> Format email salah
-                    </p>
-                  )}
                </div>
                <div>
                   <input
                     type="tel"
                     required
-                    placeholder="No. Telefon (e.g. 012-345 6789)"
+                    placeholder="No. Telefon"
                     value={teacher.phone}
                     onChange={(e) => handleTeacherChange(index, 'phone', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:ring-orange-300 outline-none ${formErrors.teachers[index]?.includes('No. Telefon tidak sah (Format: 01x-xxxxxxx)') ? 'border-red-500 bg-red-50' : ''}`}
+                    className={`w-full px-4 py-3 md:py-2 border-2 rounded-xl focus:ring-2 focus:ring-orange-300 outline-none text-sm bg-white shadow-sm ${formErrors.teachers[index]?.includes('No. Telefon tidak sah') ? 'border-red-500' : 'border-white'}`}
                   />
-                  {formErrors.teachers[index]?.includes('No. Telefon tidak sah (Format: 01x-xxxxxxx)') && (
-                    <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-bold">
-                      <AlertCircle size={10} /> Format No. Telefon Malaysia (01x-xxxxxxx)
-                    </p>
-                  )}
                </div>
              </div>
           </div>
@@ -286,114 +263,113 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
         <button
           type="button"
           onClick={addTeacher}
-          className="mt-2 flex items-center gap-2 px-4 py-2 text-sm font-medium text-orange-600 bg-orange-100 rounded-lg hover:bg-orange-200 transition-colors"
+          className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-xs font-black text-orange-600 bg-orange-100 rounded-xl hover:bg-orange-200 transition-all uppercase tracking-widest active:scale-95"
         >
           <Plus className="w-4 h-4" /> Tambah Guru Pengiring
         </button>
       </section>
 
-      <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-        <h3 className="text-xl font-semibold text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Pendaftaran Pelajar</h3>
-        {students.map((student, index) => (
-          <div key={index} className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100">
-             <div className="flex justify-between mb-2">
-                <h4 className="font-semibold text-blue-800 text-sm">Pelajar {index + 1}</h4>
-                <button type="button" onClick={() => removeStudent(index)} className="text-red-500 hover:text-red-700">
-                    <Trash2 className="w-4 h-4" />
-                </button>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-               <input
-                 type="text"
-                 required
-                 placeholder="Nama Pelajar"
-                 value={student.name}
-                 onChange={(e) => handleStudentChange(index, 'name', e.target.value)}
-                 className="px-3 py-2 border rounded focus:ring-2 focus:ring-blue-300 outline-none"
-               />
-               <div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="No. IC (XXXXXX-XX-XXXX)"
-                    value={student.ic}
-                    onChange={(e) => handleStudentChange(index, 'ic', e.target.value)}
-                    className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-300 outline-none"
-                    maxLength={14}
-                  />
-                  {student.ic.replace(/\D/g, '').length === 12 && (
-                    <p className="text-[9px] text-blue-600 mt-1 font-bold italic">✨ Jantina dikesan automatik dari IC</p>
+      <section className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h3 className="text-lg md:text-xl font-black text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Pendaftaran Pelajar</h3>
+        <div className="space-y-4">
+          {students.map((student, index) => (
+            <div key={index} className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+               <div className="flex justify-between mb-3 items-center">
+                  <h4 className="font-black text-blue-800 text-[10px] uppercase tracking-widest">Pelajar {index + 1}</h4>
+                  {students.length > 1 && (
+                    <button type="button" onClick={() => removeStudent(index)} className="text-red-500 hover:text-red-700 bg-white p-1.5 rounded-lg shadow-sm">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
                   )}
                </div>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-               <select
-                 required
-                 value={student.race}
-                 onChange={(e) => handleStudentChange(index, 'race', e.target.value)}
-                 className="px-3 py-2 border rounded outline-none focus:ring-2 focus:ring-blue-300"
-               >
-                 <option value="">Bangsa</option>
-                 <option value="Melayu">Melayu</option>
-                 <option value="Cina">Cina</option>
-                 <option value="India">India</option>
-                 <option value="Bumiputera">Bumiputera</option>
-                 <option value="Lain-lain">Lain-lain</option>
-               </select>
-               <select
-                 required
-                 value={student.gender}
-                 onChange={(e) => handleStudentChange(index, 'gender', e.target.value)}
-                 className="px-3 py-2 border rounded outline-none focus:ring-2 focus:ring-blue-300 bg-white"
-               >
-                 <option value="">Jantina</option>
-                 <option value="Lelaki">Lelaki</option>
-                 <option value="Perempuan">Perempuan</option>
-               </select>
-               <select
-                 required
-                 value={student.category}
-                 onChange={(e) => handleStudentChange(index, 'category', e.target.value)}
-                 disabled={schoolType === 'Sekolah Kebangsaan'}
-                 className={`px-3 py-2 border rounded outline-none focus:ring-2 focus:ring-blue-300 ${schoolType === 'Sekolah Kebangsaan' ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-               >
-                 <option value="">Kategori</option>
-                 <option value="Bawah 12 Tahun">Bawah 12 Tahun</option>
-                 <option value="Bawah 15 Tahun">Bawah 15 Tahun</option>
-                 <option value="Bawah 18 Tahun">Bawah 18 Tahun</option>
-               </select>
-               <input
-                 type="text"
-                 readOnly
-                 placeholder="Player ID (Auto)"
-                 value={student.playerId}
-                 className="px-3 py-2 border rounded bg-gray-100 text-gray-500 cursor-not-allowed font-mono text-xs"
-               />
-             </div>
-          </div>
-        ))}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                 <input
+                   type="text"
+                   required
+                   placeholder="Nama Pelajar"
+                   value={student.name}
+                   onChange={(e) => handleStudentChange(index, 'name', e.target.value)}
+                   className="px-4 py-3 md:py-2 border-2 border-white rounded-xl focus:ring-2 focus:ring-blue-300 outline-none text-sm bg-white shadow-sm"
+                 />
+                 <input
+                   type="text"
+                   required
+                   placeholder="No. IC (XXXXXX-XX-XXXX)"
+                   value={student.ic}
+                   onChange={(e) => handleStudentChange(index, 'ic', e.target.value)}
+                   className="px-4 py-3 md:py-2 border-2 border-white rounded-xl focus:ring-2 focus:ring-blue-300 outline-none text-sm bg-white shadow-sm font-mono"
+                   maxLength={14}
+                 />
+               </div>
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                 <select
+                   required
+                   value={student.race}
+                   onChange={(e) => handleStudentChange(index, 'race', e.target.value)}
+                   className="px-4 py-3 md:py-2 border-2 border-white rounded-xl outline-none focus:ring-2 focus:ring-blue-300 text-xs bg-white shadow-sm"
+                 >
+                   <option value="">Bangsa</option>
+                   <option value="Melayu">Melayu</option>
+                   <option value="Cina">Cina</option>
+                   <option value="India">India</option>
+                   <option value="Bumiputera">Bumiputera</option>
+                   <option value="Lain-lain">Lain-lain</option>
+                 </select>
+                 <select
+                   required
+                   value={student.gender}
+                   onChange={(e) => handleStudentChange(index, 'gender', e.target.value)}
+                   className="px-4 py-3 md:py-2 border-2 border-white rounded-xl outline-none focus:ring-2 focus:ring-blue-300 text-xs bg-white shadow-sm"
+                 >
+                   <option value="">Jantina</option>
+                   <option value="Lelaki">Lelaki</option>
+                   <option value="Perempuan">Perempuan</option>
+                 </select>
+                 <select
+                   required
+                   value={student.category}
+                   onChange={(e) => handleStudentChange(index, 'category', e.target.value)}
+                   disabled={schoolType === 'Sekolah Kebangsaan'}
+                   className={`px-4 py-3 md:py-2 border-2 border-white rounded-xl outline-none focus:ring-2 focus:ring-blue-300 text-xs shadow-sm ${schoolType === 'Sekolah Kebangsaan' ? 'bg-gray-100 text-gray-400' : 'bg-white text-gray-800'}`}
+                 >
+                   <option value="">Kategori</option>
+                   <option value="Bawah 12 Tahun">U12</option>
+                   <option value="Bawah 15 Tahun">U15</option>
+                   <option value="Bawah 18 Tahun">U18</option>
+                 </select>
+                 <input
+                   type="text"
+                   readOnly
+                   placeholder="Player ID (Auto)"
+                   value={student.playerId}
+                   className="px-4 py-3 md:py-2 border-2 border-gray-100 rounded-xl bg-gray-50 text-gray-400 text-[10px] font-mono flex items-center"
+                 />
+               </div>
+            </div>
+          ))}
+        </div>
         <button
           type="button"
           onClick={addStudent}
-          className="mt-2 flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors"
+          className="w-full md:w-auto mt-4 flex items-center justify-center gap-2 px-6 py-3 text-xs font-black text-blue-600 bg-blue-100 rounded-xl hover:bg-blue-200 transition-all uppercase tracking-widest active:scale-95"
         >
           <Plus className="w-4 h-4" /> Tambah Pelajar
         </button>
       </section>
 
-      <div className="flex gap-4 justify-end items-center">
+      <div className="flex flex-col-reverse md:flex-row gap-4 justify-end items-stretch md:items-center pt-6">
         <button
             type="button"
             onClick={resetForm}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-bold shadow-md"
+            className="flex items-center justify-center gap-2 px-8 py-4 bg-gray-500 text-white rounded-2xl hover:bg-gray-600 transition-all font-black shadow-lg shadow-gray-100 uppercase text-xs tracking-widest active:scale-95"
         >
             <RefreshCw className="w-4 h-4" /> Reset Borang
         </button>
         <button
             type="submit"
-            className="flex items-center gap-2 px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-bold shadow-lg transform active:scale-95"
+            className="flex items-center justify-center gap-2 px-10 py-5 md:py-4 bg-orange-600 text-white rounded-2xl hover:bg-orange-700 transition-all font-black shadow-xl shadow-orange-100 transform active:scale-95 uppercase text-sm md:text-xs tracking-widest"
         >
-            <Save className="w-4 h-4" /> Hantar Pendaftaran
+            <Save className="w-5 h-5 md:w-4 md:h-4" /> Hantar Pendaftaran
         </button>
       </div>
     </form>
