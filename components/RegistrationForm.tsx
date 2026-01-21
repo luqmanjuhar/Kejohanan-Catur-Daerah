@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, RefreshCw, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Save, RefreshCw } from 'lucide-react';
 import { Teacher, Student, RegistrationsMap, EventConfig } from '../types';
 import { formatSchoolName, formatPhoneNumber, formatIC, generatePlayerId, generateRegistrationId, sendWhatsAppNotification, isValidEmail, isValidMalaysianPhone } from '../utils/formatters';
 import { syncRegistration } from '../services/api';
@@ -173,203 +173,131 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
         onSuccess(regId, data);
         sendWhatsAppNotification(regId, data, 'create', eventConfig.adminPhone);
     } catch (err) {
-        alert("Pendaftaran gagal dihantar ke Cloud. Sila semak sambungan internet anda.");
+        alert("Pendaftaran gagal dihantar. Sila periksa sambungan internet.");
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
-      <section className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
-        <h3 className="text-lg md:text-xl font-black text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Maklumat Sekolah</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-gray-700 font-bold text-xs md:text-sm mb-2 uppercase">Nama Sekolah *</label>
+    <form onSubmit={handleSubmit} className="space-y-6 md:space-y-10">
+      <section className="bg-white p-4 md:p-8 rounded-[2rem] border-2 border-orange-50">
+        <h3 className="text-lg font-black text-gray-800 mb-6 flex items-center gap-3">
+            <span className="bg-orange-600 text-white w-7 h-7 rounded-lg flex items-center justify-center text-sm">1</span>
+            MAKLUMAT SEKOLAH
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Nama Sekolah *</label>
             <input
               type="text"
               required
               value={schoolName}
               onChange={handleSchoolNameChange}
-              className="w-full px-4 py-3 md:py-2 border-2 border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none text-sm"
+              className="w-full min-h-[50px] px-5 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all font-bold text-sm"
               placeholder="Contoh: SK Taman Desa"
             />
           </div>
-          <div>
-            <label className="block text-gray-700 font-bold text-xs md:text-sm mb-2 uppercase">Jenis Sekolah *</label>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Jenis Sekolah *</label>
             <select
               required
               value={schoolType}
               onChange={(e) => onDraftChange({ ...draft, schoolType: e.target.value })}
-              className="w-full px-4 py-3 md:py-2 border-2 border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none text-sm bg-white"
+              className="w-full min-h-[50px] px-5 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all font-bold text-sm"
             >
-              <option value="">Pilih Jenis Sekolah</option>
-              <option value="Sekolah Kebangsaan">Sekolah Kebangsaan</option>
-              <option value="Sekolah Menengah">Sekolah Menengah</option>
+              <option value="">Pilih...</option>
+              <option value="Sekolah Kebangsaan">Sekolah Kebangsaan (U12)</option>
+              <option value="Sekolah Menengah">Sekolah Menengah (U15/18)</option>
             </select>
-            {schoolType === 'Sekolah Kebangsaan' && (
-              <p className="text-[10px] text-orange-600 mt-1 font-bold italic">💡 Kategori ditetapkan automatik ke U12</p>
-            )}
           </div>
         </div>
       </section>
 
-      <section className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
-        <h3 className="text-lg md:text-xl font-black text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Maklumat Guru</h3>
-        {teachers.map((teacher, index) => (
-          <div key={index} className="bg-orange-50/50 p-4 rounded-xl mb-4 relative border border-orange-100">
-             <div className="flex justify-between mb-3 items-center">
-                <h4 className="font-black text-orange-800 text-[10px] uppercase tracking-widest">
-                    {index === 0 ? 'Guru 1 (Ketua)' : `Guru ${index + 1} (Pengiring)`}
-                </h4>
-                {index > 0 && (
-                    <button type="button" onClick={() => removeTeacher(index)} className="text-red-500 hover:text-red-700 bg-white p-1.5 rounded-lg shadow-sm">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                )}
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-               <div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nama Guru"
-                    value={teacher.name}
-                    onChange={(e) => handleTeacherChange(index, 'name', e.target.value)}
-                    className="w-full px-4 py-3 md:py-2 border-2 border-white rounded-xl focus:ring-2 focus:ring-orange-300 outline-none text-sm bg-white shadow-sm"
-                  />
-               </div>
-               <div>
-                  <input
-                    type="email"
-                    required
-                    placeholder="Email"
-                    value={teacher.email}
-                    onChange={(e) => handleTeacherChange(index, 'email', e.target.value)}
-                    className={`w-full px-4 py-3 md:py-2 border-2 rounded-xl focus:ring-2 focus:ring-orange-300 outline-none text-sm bg-white shadow-sm ${formErrors.teachers[index]?.includes('Email tidak sah') ? 'border-red-500' : 'border-white'}`}
-                  />
-               </div>
-               <div>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="No. Telefon"
-                    value={teacher.phone}
-                    onChange={(e) => handleTeacherChange(index, 'phone', e.target.value)}
-                    className={`w-full px-4 py-3 md:py-2 border-2 rounded-xl focus:ring-2 focus:ring-orange-300 outline-none text-sm bg-white shadow-sm ${formErrors.teachers[index]?.includes('No. Telefon tidak sah') ? 'border-red-500' : 'border-white'}`}
-                  />
-               </div>
-             </div>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={addTeacher}
-          className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-xs font-black text-orange-600 bg-orange-100 rounded-xl hover:bg-orange-200 transition-all uppercase tracking-widest active:scale-95"
-        >
-          <Plus className="w-4 h-4" /> Tambah Guru Pengiring
-        </button>
+      <section className="bg-white p-4 md:p-8 rounded-[2rem] border-2 border-orange-50">
+        <h3 className="text-lg font-black text-gray-800 mb-6 flex items-center gap-3">
+            <span className="bg-orange-600 text-white w-7 h-7 rounded-lg flex items-center justify-center text-sm">2</span>
+            MAKLUMAT GURU
+        </h3>
+        <div className="space-y-4">
+            {teachers.map((teacher, index) => (
+              <div key={index} className="p-5 bg-orange-50/30 rounded-2xl border-2 border-orange-50 relative group">
+                 <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">{index === 0 ? 'Guru Pembimbing (Ketua)' : 'Guru Pengiring'}</span>
+                    {index > 0 && (
+                        <button type="button" onClick={() => removeTeacher(index)} className="text-red-400 hover:text-red-600 active:scale-90 transition-all p-1">
+                            <Trash2 size={18} />
+                        </button>
+                    )}
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input required placeholder="Nama Guru" value={teacher.name} onChange={(e) => handleTeacherChange(index, 'name', e.target.value)} className="w-full min-h-[48px] px-4 py-2 border-2 border-white rounded-xl focus:border-orange-200 outline-none text-sm font-bold shadow-sm" />
+                    <input required type="email" placeholder="Email" value={teacher.email} onChange={(e) => handleTeacherChange(index, 'email', e.target.value)} className={`w-full min-h-[48px] px-4 py-2 border-2 rounded-xl focus:border-orange-200 outline-none text-sm font-bold shadow-sm ${formErrors.teachers[index]?.includes('Email tidak sah') ? 'border-red-300' : 'border-white'}`} />
+                    <input required type="tel" placeholder="No. Telefon" value={teacher.phone} onChange={(e) => handleTeacherChange(index, 'phone', e.target.value)} className={`w-full min-h-[48px] px-4 py-2 border-2 rounded-xl focus:border-orange-200 outline-none text-sm font-bold shadow-sm ${formErrors.teachers[index]?.includes('No. Telefon tidak sah') ? 'border-red-300' : 'border-white'}`} />
+                 </div>
+              </div>
+            ))}
+            <button type="button" onClick={addTeacher} className="w-full py-4 bg-orange-50 text-orange-600 text-xs font-black rounded-2xl border-2 border-dashed border-orange-100 hover:bg-orange-100 transition-all active:scale-95 uppercase tracking-widest">
+                + Tambah Guru Pengiring
+            </button>
+        </div>
       </section>
 
-      <section className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
-        <h3 className="text-lg md:text-xl font-black text-orange-600 mb-4 border-b-2 border-orange-100 pb-2">Pendaftaran Pelajar</h3>
+      <section className="bg-white p-4 md:p-8 rounded-[2rem] border-2 border-blue-50">
+        <h3 className="text-lg font-black text-gray-800 mb-6 flex items-center gap-3">
+            <span className="bg-blue-600 text-white w-7 h-7 rounded-lg flex items-center justify-center text-sm">3</span>
+            SENARAI PELAJAR
+        </h3>
         <div className="space-y-4">
           {students.map((student, index) => (
-            <div key={index} className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-               <div className="flex justify-between mb-3 items-center">
-                  <h4 className="font-black text-blue-800 text-[10px] uppercase tracking-widest">Pelajar {index + 1}</h4>
+            <div key={index} className="p-5 bg-blue-50/30 rounded-2xl border-2 border-blue-50">
+               <div className="flex justify-between items-center mb-4">
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Pelajar {index + 1}</span>
                   {students.length > 1 && (
-                    <button type="button" onClick={() => removeStudent(index)} className="text-red-500 hover:text-red-700 bg-white p-1.5 rounded-lg shadow-sm">
-                        <Trash2 className="w-4 h-4" />
+                    <button type="button" onClick={() => removeStudent(index)} className="text-red-400 hover:text-red-600 active:scale-90 transition-all p-1">
+                        <Trash2 size={18} />
                     </button>
                   )}
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                 <input
-                   type="text"
-                   required
-                   placeholder="Nama Pelajar"
-                   value={student.name}
-                   onChange={(e) => handleStudentChange(index, 'name', e.target.value)}
-                   className="px-4 py-3 md:py-2 border-2 border-white rounded-xl focus:ring-2 focus:ring-blue-300 outline-none text-sm bg-white shadow-sm"
-                 />
-                 <input
-                   type="text"
-                   required
-                   placeholder="No. IC (XXXXXX-XX-XXXX)"
-                   value={student.ic}
-                   onChange={(e) => handleStudentChange(index, 'ic', e.target.value)}
-                   className="px-4 py-3 md:py-2 border-2 border-white rounded-xl focus:ring-2 focus:ring-blue-300 outline-none text-sm bg-white shadow-sm font-mono"
-                   maxLength={14}
-                 />
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                 <input required placeholder="Nama Penuh (Seperti Dalam IC)" value={student.name} onChange={(e) => handleStudentChange(index, 'name', e.target.value)} className="w-full min-h-[48px] px-4 py-2 border-2 border-white rounded-xl outline-none text-sm font-bold shadow-sm focus:border-blue-200" />
+                 <input required placeholder="No. Kad Pengenalan" value={student.ic} onChange={(e) => handleStudentChange(index, 'ic', e.target.value)} className="w-full min-h-[48px] px-4 py-2 border-2 border-white rounded-xl outline-none text-sm font-bold shadow-sm focus:border-blue-200 font-mono" maxLength={14} />
                </div>
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                 <select
-                   required
-                   value={student.race}
-                   onChange={(e) => handleStudentChange(index, 'race', e.target.value)}
-                   className="px-4 py-3 md:py-2 border-2 border-white rounded-xl outline-none focus:ring-2 focus:ring-blue-300 text-xs bg-white shadow-sm"
-                 >
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                 <select required value={student.race} onChange={(e) => handleStudentChange(index, 'race', e.target.value)} className="min-h-[48px] px-3 border-2 border-white rounded-xl text-xs font-bold outline-none shadow-sm bg-white">
                    <option value="">Bangsa</option>
                    <option value="Melayu">Melayu</option>
                    <option value="Cina">Cina</option>
                    <option value="India">India</option>
-                   <option value="Bumiputera">Bumiputera</option>
                    <option value="Lain-lain">Lain-lain</option>
                  </select>
-                 <select
-                   required
-                   value={student.gender}
-                   onChange={(e) => handleStudentChange(index, 'gender', e.target.value)}
-                   className="px-4 py-3 md:py-2 border-2 border-white rounded-xl outline-none focus:ring-2 focus:ring-blue-300 text-xs bg-white shadow-sm"
-                 >
+                 <select required value={student.gender} onChange={(e) => handleStudentChange(index, 'gender', e.target.value)} className="min-h-[48px] px-3 border-2 border-white rounded-xl text-xs font-bold outline-none shadow-sm bg-white">
                    <option value="">Jantina</option>
                    <option value="Lelaki">Lelaki</option>
                    <option value="Perempuan">Perempuan</option>
                  </select>
-                 <select
-                   required
-                   value={student.category}
-                   onChange={(e) => handleStudentChange(index, 'category', e.target.value)}
-                   disabled={schoolType === 'Sekolah Kebangsaan'}
-                   className={`px-4 py-3 md:py-2 border-2 border-white rounded-xl outline-none focus:ring-2 focus:ring-blue-300 text-xs shadow-sm ${schoolType === 'Sekolah Kebangsaan' ? 'bg-gray-100 text-gray-400' : 'bg-white text-gray-800'}`}
-                 >
+                 <select required value={student.category} onChange={(e) => handleStudentChange(index, 'category', e.target.value)} disabled={schoolType === 'Sekolah Kebangsaan'} className="min-h-[48px] px-3 border-2 border-white rounded-xl text-xs font-bold outline-none shadow-sm bg-white disabled:bg-gray-100 disabled:text-gray-400">
                    <option value="">Kategori</option>
                    <option value="Bawah 12 Tahun">U12</option>
                    <option value="Bawah 15 Tahun">U15</option>
                    <option value="Bawah 18 Tahun">U18</option>
                  </select>
-                 <input
-                   type="text"
-                   readOnly
-                   placeholder="Player ID (Auto)"
-                   value={student.playerId}
-                   className="px-4 py-3 md:py-2 border-2 border-gray-100 rounded-xl bg-gray-50 text-gray-400 text-[10px] font-mono flex items-center"
-                 />
+                 <div className="min-h-[48px] px-3 bg-gray-100 rounded-xl text-[10px] font-mono flex items-center text-gray-400 border-2 border-white">
+                    {student.playerId || 'ID AUTO'}
+                 </div>
                </div>
             </div>
           ))}
+          <button type="button" onClick={addStudent} className="w-full py-4 bg-blue-50 text-blue-600 text-xs font-black rounded-2xl border-2 border-dashed border-blue-100 hover:bg-blue-100 transition-all active:scale-95 uppercase tracking-widest">
+              + Tambah Pelajar
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={addStudent}
-          className="w-full md:w-auto mt-4 flex items-center justify-center gap-2 px-6 py-3 text-xs font-black text-blue-600 bg-blue-100 rounded-xl hover:bg-blue-200 transition-all uppercase tracking-widest active:scale-95"
-        >
-          <Plus className="w-4 h-4" /> Tambah Pelajar
-        </button>
       </section>
 
-      <div className="flex flex-col-reverse md:flex-row gap-4 justify-end items-stretch md:items-center pt-6">
-        <button
-            type="button"
-            onClick={resetForm}
-            className="flex items-center justify-center gap-2 px-8 py-4 bg-gray-500 text-white rounded-2xl hover:bg-gray-600 transition-all font-black shadow-lg shadow-gray-100 uppercase text-xs tracking-widest active:scale-95"
-        >
-            <RefreshCw className="w-4 h-4" /> Reset Borang
+      <div className="flex flex-col-reverse md:flex-row gap-4 justify-end pt-8">
+        <button type="button" onClick={resetForm} className="flex-1 md:flex-none px-10 py-5 bg-gray-100 text-gray-400 rounded-2xl font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-all">
+          <RefreshCw className="w-4 h-4 inline mr-2" /> Reset
         </button>
-        <button
-            type="submit"
-            className="flex items-center justify-center gap-2 px-10 py-5 md:py-4 bg-orange-600 text-white rounded-2xl hover:bg-orange-700 transition-all font-black shadow-xl shadow-orange-100 transform active:scale-95 uppercase text-sm md:text-xs tracking-widest"
-        >
-            <Save className="w-5 h-5 md:w-4 md:h-4" /> Hantar Pendaftaran
+        <button type="submit" className="flex-[2] md:flex-none px-16 py-5 bg-orange-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-orange-100 active:scale-95 transition-all flex items-center justify-center gap-3">
+          <Save size={20} /> Hantar Pendaftaran
         </button>
       </div>
     </form>

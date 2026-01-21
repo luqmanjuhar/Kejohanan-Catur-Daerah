@@ -3,9 +3,8 @@
 <html lang="ms">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Dashboard Sukan Catur MSSD</title>
-    <!-- We keep Tailwind CDN for simplicity, though normally you'd install it -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -13,10 +12,16 @@
         font-family: 'Inter', sans-serif;
         -webkit-tap-highlight-color: transparent;
       }
-      /* Ensure smooth scrolling for sticky nav */
-      html {
-        scroll-behavior: smooth;
+      /* Memastikan semua elemen boleh klik bertindak balas dengan pantas pada mobile */
+      button, a, input, select {
+        touch-action: manipulation;
+        cursor: pointer;
       }
+      /* Sembunyikan scrollbar tapi kekalkan fungsi scroll */
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      
+      html { scroll-behavior: smooth; }
     </style>
   <script type="importmap">
 {
@@ -31,7 +36,7 @@
 }
 </script>
 </head>
-  <body class="bg-gradient-to-br from-orange-50 to-orange-100 min-h-screen text-gray-800 antialiased">
+  <body class="bg-gradient-to-br from-orange-50 to-orange-100 min-h-screen text-gray-800 antialiased overflow-x-hidden">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
