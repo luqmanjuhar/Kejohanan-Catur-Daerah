@@ -28,14 +28,21 @@ function App() {
   const [eventConfig, setEventConfig] = useState<EventConfig>(INITIAL_CONFIG);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Fungsi utama untuk menyegerakkan data dari Google Sheets ke Website.
+   */
   const handleSync = async () => {
     setLoading(true);
     try {
         const result = await loadAllData();
+        
+        // Update Konfigurasi Acara (Nama, Venue, Jadual, dll)
         if (result.config) {
             setEventConfig(result.config);
             document.title = result.config.eventName;
         }
+        
+        // Update Data Pendaftaran untuk Dashboard
         if (result.registrations) {
             setRegistrations(result.registrations);
         }
@@ -43,10 +50,10 @@ function App() {
         if (result.error) {
             showNotif(result.error, "error");
         } else {
-            showNotif("Data Berjaya Disegerakkan!", "success");
+            showNotif("Sambungan Cloud Berjaya!", "success");
         }
     } catch (error: any) {
-        showNotif("Gagal menyegerak data dari cloud.", "error");
+        showNotif("Ralat: Skrip API Google tidak merespon.", "error");
     } finally {
         setLoading(false);
     }
@@ -82,15 +89,17 @@ function App() {
         </div>
       </header>
 
+      {/* Navigation */}
       <nav className="bg-white/90 backdrop-blur-md rounded-2xl shadow-sm p-2 mb-8 sticky top-4 z-40 border border-white/50 shrink-0">
         <div className="flex flex-wrap gap-1 justify-center">
-            <NavButton active={activeTab === 'pendaftaran'} onClick={() => setActiveTab('pendaftaran')}>📝 Daftar</NavButton>
-            <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')}>📊 Analisis</NavButton>
+            <NavButton active={activeTab === 'pendaftaran'} onClick={() => setActiveTab('pendaftaran')}>📝 Pendaftaran</NavButton>
+            <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</NavButton>
             <NavButton active={activeTab === 'pengumuman'} onClick={() => setActiveTab('pengumuman')}>📢 Jadual</NavButton>
-            <NavButton active={activeTab === 'dokumen'} onClick={() => setActiveTab('dokumen')}>📄 Fail</NavButton>
+            <NavButton active={activeTab === 'dokumen'} onClick={() => setActiveTab('dokumen')}>📄 Dokumen</NavButton>
         </div>
       </nav>
 
+      {/* Notifications */}
       {notification && (
           <div className={`fixed bottom-8 right-8 z-50 px-6 py-4 rounded-2xl shadow-2xl text-white font-bold animate-slideUp max-w-sm flex items-center gap-3 ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
               <div className="bg-white/20 p-2 rounded-full">
@@ -100,8 +109,16 @@ function App() {
           </div>
       )}
 
+      {/* Main Content */}
       <main className={`flex-1 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
-        {activeTab === 'pendaftaran' && (
+        {loading && (
+            <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-orange-600 font-bold">Menghubungkan ke Pangkalan Data...</p>
+            </div>
+        )}
+
+        {!loading && activeTab === 'pendaftaran' && (
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-10 animate-fadeIn">
                 <div className="flex items-center gap-2 mb-8 bg-gray-50 p-1.5 rounded-2xl w-fit">
                     <button onClick={() => setSubTab('daftar-baru')} className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${subTab === 'daftar-baru' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-400 hover:text-orange-400'}`}>➕ Baru</button>
@@ -114,9 +131,9 @@ function App() {
             </div>
         )}
 
-        {activeTab === 'dashboard' && <Dashboard registrations={registrations} onRefresh={handleSync} onOpenSetup={handleOpenSetup} />}
-        {activeTab === 'pengumuman' && <Announcements config={eventConfig} />}
-        {activeTab === 'dokumen' && <Documents config={eventConfig} />}
+        {!loading && activeTab === 'dashboard' && <Dashboard registrations={registrations} onRefresh={handleSync} onOpenSetup={handleOpenSetup} />}
+        {!loading && activeTab === 'pengumuman' && <Announcements config={eventConfig} />}
+        {!loading && activeTab === 'dokumen' && <Documents config={eventConfig} />}
       </main>
 
       <footer className="mt-12 mb-8 text-center shrink-0">
