@@ -3,20 +3,11 @@ import { RegistrationsMap, EventConfig, ScheduleDay, DistrictConfig } from "../t
 
 // Konfigurasi Khas Pasir Gudang
 const PASIR_GUDANG_SS_ID = '1iKLf--vY8U75GuIewn1OJbNGFsDPDaqNk8njAAsUSU0';
-const PASIR_GUDANG_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwHa79w-hI1uYyfvoW58KyelV4GIlH-5yEhpVwEqar2UMyoZgXJGZUXkRzJUOW7xawW/exec';
+const PASIR_GUDANG_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHa79w-hI1uYyfvoW58KyelV4GIlH-5yEhpVwEqar2UMyoZgXJGZUXkRzJUOW7xawW/exec';
 
 const DEFAULT_SCHEDULE: ScheduleDay[] = [
   { date: "HARI PERTAMA", items: [{ time: "8.00 pagi", activity: "Pendaftaran" }] }
 ];
-
-const BASE_CONFIG: EventConfig = {
-  eventName: "KEJOHANAN CATUR MSSD PASIR GUDANG",
-  eventVenue: "Lokasi Belum Ditetapkan",
-  adminPhone: "60123456789",
-  schedules: { primary: DEFAULT_SCHEDULE, secondary: DEFAULT_SCHEDULE },
-  links: { rules: "#", results: "#", photos: "#" },
-  documents: { invitation: "#", meeting: "#", arbiter: "#" }
-};
 
 export const getDistrictKey = (): string => {
   const hostname = window.location.hostname;
@@ -30,13 +21,13 @@ const CURRENT_KEY = getDistrictKey();
 export const getScriptUrl = (): string => {
   const saved = localStorage.getItem(`scriptUrl_${CURRENT_KEY}`);
   if (saved) return saved;
-  return CURRENT_KEY === 'mssdpasirgudang' ? PASIR_GUDANG_SCRIPT_URL : PASIR_GUDANG_SCRIPT_URL;
+  return PASIR_GUDANG_SCRIPT_URL;
 };
 
 export const getSpreadsheetId = (): string => {
   const saved = localStorage.getItem(`spreadsheetId_${CURRENT_KEY}`);
   if (saved) return saved;
-  return CURRENT_KEY === 'mssdpasirgudang' ? PASIR_GUDANG_SS_ID : PASIR_GUDANG_SS_ID;
+  return PASIR_GUDANG_SS_ID;
 };
 
 const jsonpRequest = (url: string, params: Record<string, string>): Promise<any> => {
@@ -65,15 +56,14 @@ const jsonpRequest = (url: string, params: Record<string, string>): Promise<any>
     script.src = finalUrl;
     script.onerror = () => { 
       cleanup(); 
-      reject(new Error("Gagal memuatkan skrip. Sila pastikan URL skrip betul dan di-deploy sebagai 'Anyone'.")); 
+      reject(new Error("Gagal memuatkan skrip API.")); 
     };
     document.head.appendChild(script);
 
-    // Timeout after 20 seconds
     setTimeout(() => { 
       if ((window as any)[callbackName]) { 
         cleanup(); 
-        reject(new Error("Masa tamat (Timeout). Pelayan tidak merespon.")); 
+        reject(new Error("Masa tamat (Timeout).")); 
       } 
     }, 20000);
   });
@@ -83,7 +73,7 @@ export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap,
   const ssId = getSpreadsheetId();
   const scriptUrl = getScriptUrl();
   
-  if (!ssId || !scriptUrl) return { error: "ID Spreadsheet atau URL Skrip tidak dikesan." };
+  if (!ssId) return { error: "ID Spreadsheet tidak dikesan." };
   
   try {
     const result = await jsonpRequest(scriptUrl, { 
@@ -92,7 +82,7 @@ export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap,
     });
     return result;
   } catch (e: any) {
-    return { error: e.message || "Ralat komunikasi API." };
+    return { error: e.message || "Ralat memuatkan data cloud." };
   }
 };
 
@@ -105,7 +95,6 @@ export const syncConfigToCloud = async (config: EventConfig) => {
   return fetch(getScriptUrl(), { 
     method: 'POST', 
     mode: 'no-cors', 
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload) 
   });
 };
@@ -120,7 +109,6 @@ export const syncRegistration = async (regId: string, data: any, isUpdate = fals
   return fetch(getScriptUrl(), { 
     method: 'POST', 
     mode: 'no-cors', 
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload) 
   });
 };
@@ -139,19 +127,11 @@ export const saveLocalConfig = (spreadsheetId: string, webAppUrl: string) => {
     localStorage.setItem(`scriptUrl_${CURRENT_KEY}`, webAppUrl);
 };
 
-// --- Superadmin Functions ---
-
-/**
- * Loads all district configurations from local storage for the superadmin dashboard.
- */
 export const loadAllDistricts = async (): Promise<DistrictConfig[]> => {
   const saved = localStorage.getItem('mssd_all_districts');
   return saved ? JSON.parse(saved) : [];
 };
 
-/**
- * Saves or updates a district configuration in local storage for the superadmin dashboard.
- */
 export const saveDistrict = async (config: DistrictConfig): Promise<void> => {
   const districts = await loadAllDistricts();
   const index = districts.findIndex(d => d.id === config.id);
