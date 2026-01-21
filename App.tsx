@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { RegistrationsMap, EventConfig } from './types';
-// Fix: Removed non-existent export getEventConfig
 import { loadAllData, getDistrictKey } from './services/api';
 import RegistrationForm from './components/RegistrationForm';
 import UpdateRegistration from './components/UpdateRegistration';
@@ -12,11 +11,11 @@ import SetupModal from './components/SetupModal';
 
 const DEFAULT_SCHEDULE = [{ date: "HARI PERTAMA", items: [{ time: "8.00 pagi", activity: "Pendaftaran" }] }];
 const INITIAL_CONFIG: EventConfig = {
-  eventName: "KEJOHANAN CATUR MSSD",
-  eventVenue: "Dewan Sekolah",
+  eventName: "KEJOHANAN CATUR MSSD PASIR GUDANG",
+  eventVenue: "Lokasi Acara",
   adminPhone: "60123456789",
   schedules: { primary: DEFAULT_SCHEDULE, secondary: DEFAULT_SCHEDULE },
-  links: { rules: "#", results: "https://chess-results.com", photos: "#" },
+  links: { rules: "#", results: "#", photos: "#" },
   documents: { invitation: "#", meeting: "#", arbiter: "#" }
 };
 
@@ -43,7 +42,7 @@ function App() {
             document.title = result.config.eventName;
         }
         if (result.error) showNotif(result.error, "error");
-        else showNotif("Data Cloud Berjaya Disegerakkan!", "success");
+        else showNotif("Data Berjaya Disegerakkan!", "success");
     } catch (error: any) {
         showNotif("Gagal menyegerak data cloud.", "error");
     } finally {
@@ -64,12 +63,13 @@ function App() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <header className="bg-white rounded-2xl shadow-sm p-8 mb-8 text-center border-b-4 border-orange-600">
+      <header className="bg-white rounded-2xl shadow-sm p-8 mb-8 text-center border-b-4 border-orange-600 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-2 h-full bg-orange-600"></div>
         <h1 className="text-4xl font-extrabold text-orange-600 tracking-tight">
             {eventConfig.eventName}
         </h1>
         <p className="text-gray-400 font-medium mt-3 text-lg">
-            Sistem Pendaftaran Kejohanan Catur Daerah {getDistrictKey().toUpperCase()}
+            Sistem Pendaftaran & Maklumat Rasmi
         </p>
       </header>
 
@@ -91,7 +91,7 @@ function App() {
       </nav>
 
       {notification && (
-          <div className={`fixed bottom-8 right-8 z-50 px-6 py-3 rounded-xl shadow-2xl text-white font-bold animate-slideUp ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+          <div className={`fixed bottom-8 right-8 z-50 px-6 py-3 rounded-xl shadow-2xl text-white font-bold animate-slideUp max-w-sm ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
               {notification.msg}
           </div>
       )}
@@ -100,10 +100,13 @@ function App() {
         {activeTab === 'pendaftaran' && (
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 animate-fadeIn">
                 <div className="flex gap-4 mb-8">
-                    <button onClick={() => setSubTab('daftar-baru')} className={`px-5 py-2 rounded-lg font-bold transition-all ${subTab === 'daftar-baru' ? 'bg-orange-100 text-orange-600' : 'text-gray-400'}`}>➕ Daftar Baru</button>
-                    <button onClick={() => setSubTab('kemaskini')} className={`px-5 py-2 rounded-lg font-bold transition-all ${subTab === 'kemaskini' ? 'bg-orange-100 text-orange-600' : 'text-gray-400'}`}>✏️ Kemaskini</button>
+                    <button onClick={() => setSubTab('daftar-baru')} className={`px-5 py-2 rounded-lg font-bold transition-all ${subTab === 'daftar-baru' ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:text-orange-500'}`}>➕ Daftar Baru</button>
+                    <button onClick={() => setSubTab('kemaskini')} className={`px-5 py-2 rounded-lg font-bold transition-all ${subTab === 'kemaskini' ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:text-orange-500'}`}>✏️ Kemaskini</button>
                 </div>
-                {subTab === 'daftar-baru' ? <RegistrationForm registrations={registrations} onSuccess={(id, d) => { setRegistrations({...registrations, [id]: d}); showNotif(`Berjaya: ${id}`, 'success'); }} eventConfig={eventConfig} /> : <UpdateRegistration localRegistrations={registrations} onUpdateSuccess={() => handleSync()} eventConfig={eventConfig} />}
+                {subTab === 'daftar-baru' ? 
+                  <RegistrationForm registrations={registrations} onSuccess={(id, d) => { setRegistrations({...registrations, [id]: d}); showNotif(`Pendaftaran Berjaya: ${id}`, 'success'); }} eventConfig={eventConfig} /> : 
+                  <UpdateRegistration localRegistrations={registrations} onUpdateSuccess={() => handleSync()} eventConfig={eventConfig} />
+                }
             </div>
         )}
 
@@ -111,6 +114,11 @@ function App() {
         {activeTab === 'pengumuman' && <Announcements config={eventConfig} />}
         {activeTab === 'dokumen' && <Documents config={eventConfig} />}
       </main>
+
+      <footer className="mt-12 mb-8 text-center text-gray-400 text-sm">
+          <p>© {new Date().getFullYear()} Kejohanan Catur MSSD {getDistrictKey().toUpperCase()}</p>
+          <button onClick={handleOpenSetup} className="mt-4 text-gray-300 hover:text-orange-400 transition-colors">⚙️ Konfigurasi Sistem</button>
+      </footer>
 
       <SetupModal isOpen={showSetup} onClose={() => setShowSetup(false)} currentConfig={eventConfig} />
     </div>

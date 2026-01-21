@@ -31,12 +31,12 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose, currentConfig 
     try {
         saveLocalConfig(spreadsheetId, webAppUrl);
         await syncConfigToCloud(eventConfig);
-        alert("Tetapan berjaya disimpan ke Cloud!");
+        alert("Tahniah! Tetapan berjaya disimpan ke Cloud Google Sheets.");
         onClose();
         window.location.reload(); 
     } catch (e) {
-        alert("Gagal menyimpan ke Cloud, tetapi disimpan secara lokal.");
-        onClose();
+        alert("Gagal menyegerak ke Cloud. Sila pastikan URL Skrip betul.");
+        console.error(e);
     } finally {
         setIsSaving(false);
     }
@@ -58,6 +58,12 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose, currentConfig 
       setEventConfig(newConfig);
   };
 
+  const addScheduleDay = (type: 'primary' | 'secondary') => {
+      const newConfig = { ...eventConfig };
+      newConfig.schedules[type].push({ date: 'HARI BARU', items: [] });
+      setEventConfig(newConfig);
+  };
+
   const addScheduleItem = (type: 'primary' | 'secondary', dayIdx: number) => {
       const newConfig = { ...eventConfig };
       newConfig.schedules[type][dayIdx].items.push({ time: '', activity: '' });
@@ -70,9 +76,16 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose, currentConfig 
       setEventConfig(newConfig);
   };
 
+  const removeScheduleDay = (type: 'primary' | 'secondary', dayIdx: number) => {
+      const newConfig = { ...eventConfig };
+      newConfig.schedules[type].splice(dayIdx, 1);
+      setEventConfig(newConfig);
+  };
+
   const getScriptContent = () => {
     return `/**
- * MSSD Catur - DATABASE ENGINE v3.0
+ * MSSD Catur - DATABASE ENGINE v4.0 (Pasir Gudang Edition)
+ * Pastikan ID Spreadsheet: ${spreadsheetId || 'PASTE_ID_HERE'}
  */
 
 function doGet(e) {
@@ -103,22 +116,31 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  const ss = SpreadsheetApp.openById(data.spreadsheetId);
-  initSheets(ss);
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.openById(data.spreadsheetId);
+    initSheets(ss);
 
-  if (data.action === 'saveConfig') {
-    saveConfigToSheet(ss, data.config);
-    return ContentService.createTextOutput("OK");
-  } else if (data.action === 'submit' || data.action === 'update') {
-    return saveRegistration(ss, data);
+    if (data.action === 'saveConfig') {
+      saveConfigToSheet(ss, data.config);
+      return ContentService.createTextOutput("OK");
+    } else if (data.action === 'submit' || data.action === 'update') {
+      saveRegistration(ss, data);
+      return ContentService.createTextOutput("Success");
+    }
+  } catch (err) {
+    return ContentService.createTextOutput("Error: " + err.toString());
   }
 }
 
 function createResponse(data, callback) {
   const output = JSON.stringify(data);
-  return ContentService.createTextOutput(callback ? callback + '(' + output + ')' : output)
-    .setMimeType(callback ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON);
+  if (callback) {
+    return ContentService.createTextOutput(callback + '(' + output + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(output)
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function initSheets(ss) {
@@ -149,6 +171,7 @@ function loadConfig(ss) {
   const schedules = { primary: [], secondary: [] };
   for(let i=1; i<jadualRaw.length; i++) {
     const [type, day, time, activity] = jadualRaw[i];
+    if(!type) continue;
     const target = type.toLowerCase() === 'primary' ? schedules.primary : schedules.secondary;
     let dayObj = target.find(d => d.date === day);
     if (!dayObj) {
@@ -160,7 +183,7 @@ function loadConfig(ss) {
 
   return {
     eventName: info.eventName || "KEJOHANAN CATUR MSSD",
-    eventVenue: info.eventVenue || "Dewan Sekolah",
+    eventVenue: info.eventVenue || "Lokasi Acara",
     adminPhone: info.adminPhone || "60123456789",
     schedules: schedules,
     links: { rules: pautan.rules || "#", results: pautan.results || "#", photos: pautan.photos || "#" },
@@ -185,7 +208,9 @@ function saveConfigToSheet(ss, config) {
 }
 
 function getMap(ss, name) {
-  const data = ss.getSheetByName(name).getDataRange().getValues();
+  const sheet = ss.getSheetByName(name);
+  if(!sheet) return {};
+  const data = sheet.getDataRange().getValues();
   const obj = {};
   for(let i=1; i<data.length; i++) obj[data[i][0]] = data[i][1];
   return obj;
@@ -234,7 +259,6 @@ function saveRegistration(ss, data) {
   schoolSheet.appendRow([regId, data.schoolName, data.schoolType, data.teachers.length, data.students.length, L, P, U12, U15, U18, data.createdAt || now, now, 'AKTIF']);
   data.teachers.forEach(t => teacherSheet.appendRow([regId, data.schoolName, t.name, t.email, t.phone, t.position, now]));
   data.students.forEach(s => studentSheet.appendRow([regId, data.schoolName, s.name, s.ic, s.gender, s.category, s.race, s.playerId, now]));
-  return ContentService.createTextOutput("Success");
 }
 
 function searchRegistration(ss, regId, password) {
@@ -243,7 +267,7 @@ function searchRegistration(ss, regId, password) {
   if (!reg) return { found: false, error: "Pendaftaran tidak dijumpai." };
   const teacherPhone = reg.teachers[0]?.phone || "";
   if (teacherPhone.replace(/\\D/g, '').slice(-4) === password) return { found: true, registration: reg };
-  return { found: false, error: "Kata laluan salah." };
+  return { found: false, error: "Kata laluan salah (4 digit terakhir telefon ketua)." };
 }
 `;
   };
@@ -253,12 +277,12 @@ function searchRegistration(ss, regId, password) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] shadow-2xl overflow-hidden animate-scaleIn flex flex-col">
-        <div className="p-6 bg-orange-600 text-white flex justify-between items-center">
+        <div className="p-6 bg-orange-600 text-white flex justify-between items-center shrink-0">
             <h2 className="text-xl font-bold flex items-center gap-2">⚙️ Tetapan Pangkalan Data & Acara</h2>
             <button onClick={onClose} className="hover:bg-white/20 p-1 rounded transition-colors"><X /></button>
         </div>
 
-        <div className="flex border-b overflow-x-auto bg-gray-50">
+        <div className="flex border-b overflow-x-auto bg-gray-50 shrink-0">
             <button onClick={() => setActiveTab('system')} className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${activeTab === 'system' ? 'border-orange-600 text-orange-600 bg-white' : 'border-transparent text-gray-500'}`}>Sistem</button>
             <button onClick={() => setActiveTab('info')} className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${activeTab === 'info' ? 'border-orange-600 text-orange-600 bg-white' : 'border-transparent text-gray-500'}`}>Maklumat</button>
             <button onClick={() => setActiveTab('jadual')} className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${activeTab === 'jadual' ? 'border-orange-600 text-orange-600 bg-white' : 'border-transparent text-gray-500'}`}>Jadual</button>
@@ -272,7 +296,7 @@ function searchRegistration(ss, regId, password) {
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3 items-start">
                         <Database className="text-blue-600 mt-1" />
                         <div>
-                            <h4 className="font-bold text-blue-800">Sambungan Google Sheets</h4>
+                            <h4 className="font-bold text-blue-800">Sambungan Google Sheets (Pasir Gudang)</h4>
                             <p className="text-xs text-blue-600">ID dan URL ini menghubungkan aplikasi ke pengurus data anda.</p>
                         </div>
                     </div>
@@ -286,7 +310,7 @@ function searchRegistration(ss, regId, password) {
                     </div>
                     <div className="bg-gray-900 rounded-xl p-4">
                         <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-bold text-gray-400 uppercase">Kod Engine (Apps Script)</span>
+                            <span className="text-xs font-bold text-gray-400 uppercase">Kod Engine (Salin ke Apps Script)</span>
                             <button onClick={copyCode} className="text-xs text-orange-400 font-bold hover:underline flex items-center gap-1">
                                 {copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'Telah Disalin' : 'Salin Kod'}
                             </button>
@@ -309,7 +333,7 @@ function searchRegistration(ss, regId, password) {
                         <input value={eventConfig.eventVenue} onChange={e => setEventConfig({...eventConfig, eventVenue: e.target.value})} className="w-full p-3 border rounded-xl" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">No. Telefon Admin (Tanpa '+')</label>
+                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">No. Telefon Admin (WhatsApp)</label>
                         <input value={eventConfig.adminPhone} onChange={e => setEventConfig({...eventConfig, adminPhone: e.target.value})} className="w-full p-3 border rounded-xl" placeholder="601..." />
                     </div>
                 </div>
@@ -319,19 +343,25 @@ function searchRegistration(ss, regId, password) {
                 <div className="grid md:grid-cols-2 gap-6">
                     {['primary', 'secondary'].map((type: any) => (
                         <div key={type} className="bg-gray-50 p-4 rounded-xl border">
-                            <h4 className="font-bold text-gray-700 mb-4 uppercase">{type === 'primary' ? 'Sekolah Rendah' : 'Sekolah Menengah'}</h4>
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="font-bold text-gray-700 uppercase">{type === 'primary' ? 'Sekolah Rendah' : 'Sekolah Menengah'}</h4>
+                                <button onClick={() => addScheduleDay(type)} className="text-xs bg-orange-600 text-white px-2 py-1 rounded">Tambah Hari</button>
+                            </div>
                             {eventConfig.schedules[type as 'primary' | 'secondary'].map((day, dIdx) => (
-                                <div key={dIdx} className="mb-6 space-y-2">
-                                    <input value={day.date} onChange={e => updateSchedule(type, dIdx, null, 'date', e.target.value)} className="w-full p-2 font-bold bg-white border rounded" />
-                                    <div className="space-y-2 pl-4 border-l-2 border-orange-200">
+                                <div key={dIdx} className="mb-6 p-3 bg-white border rounded-lg shadow-sm space-y-2">
+                                    <div className="flex justify-between">
+                                        <input value={day.date} onChange={e => updateSchedule(type, dIdx, null, 'date', e.target.value)} className="flex-1 p-2 font-bold border-b border-orange-100 outline-none" placeholder="Tarikh / Hari" />
+                                        <button onClick={() => removeScheduleDay(type, dIdx)} className="text-red-400 p-1"><Trash2 size={16}/></button>
+                                    </div>
+                                    <div className="space-y-2 pl-2">
                                         {day.items.map((item, iIdx) => (
                                             <div key={iIdx} className="flex gap-2 items-center">
                                                 <input value={item.time} onChange={e => updateSchedule(type, dIdx, iIdx, 'time', e.target.value)} className="w-24 p-1 text-xs border rounded" placeholder="Masa" />
                                                 <input value={item.activity} onChange={e => updateSchedule(type, dIdx, iIdx, 'activity', e.target.value)} className="flex-1 p-1 text-xs border rounded" placeholder="Aktiviti" />
-                                                <button onClick={() => removeScheduleItem(type, dIdx, iIdx)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                                                <button onClick={() => removeScheduleItem(type, dIdx, iIdx)} className="text-red-300 hover:text-red-500"><Trash2 size={14}/></button>
                                             </div>
                                         ))}
-                                        <button onClick={() => addScheduleItem(type, dIdx)} className="text-xs text-orange-600 font-bold flex items-center gap-1 hover:underline">
+                                        <button onClick={() => addScheduleItem(type, dIdx)} className="text-xs text-orange-600 font-bold flex items-center gap-1 hover:underline pt-1">
                                             <Plus size={14} /> Tambah Aktiviti
                                         </button>
                                     </div>
@@ -377,7 +407,7 @@ function searchRegistration(ss, regId, password) {
             )}
         </div>
 
-        <div className="p-6 bg-gray-50 flex justify-end gap-3 border-t">
+        <div className="p-6 bg-gray-50 flex justify-end gap-3 border-t shrink-0">
             <button onClick={onClose} className="px-5 py-2 text-gray-500 font-bold">Batal</button>
             <button onClick={handleSave} disabled={isSaving} className="px-8 py-2 bg-orange-600 text-white rounded-xl font-bold shadow-lg hover:bg-orange-700 transition-all flex items-center gap-2 disabled:opacity-50">
                 <Save size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan ke Cloud'}
