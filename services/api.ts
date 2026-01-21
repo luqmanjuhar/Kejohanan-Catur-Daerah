@@ -51,7 +51,7 @@ export const getEventConfig = (): EventConfig => {
 };
 
 /**
- * Mekanisme JSONP yang diperkukuh untuk mengelakkan ralat 'Failed to load script'
+ * Mekanisme JSONP yang diperkukuh
  */
 const jsonpRequest = (url: string, params: Record<string, string>): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -93,9 +93,6 @@ const jsonpRequest = (url: string, params: Record<string, string>): Promise<any>
   });
 };
 
-/**
- * Validasi Kredensial untuk SetupModal
- */
 export const validateCredentials = async (ssId: string, scriptUrl: string): Promise<{ success: boolean; error?: string }> => {
     if (!ssId || !scriptUrl) return { success: false, error: "ID Spreadsheet dan URL Skrip diperlukan." };
     if (!scriptUrl.startsWith('https://script.google.com')) return { success: false, error: "URL Skrip tidak sah." };
@@ -111,9 +108,6 @@ export const validateCredentials = async (ssId: string, scriptUrl: string): Prom
     }
 };
 
-/**
- * Memuatkan semua data termasuk Konfigurasi (INFO, JADUAL, PAUTAN, DOKUMEN)
- */
 export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap, config?: EventConfig, error?: string }> => {
   const ssId = getSpreadsheetId();
   const scriptUrl = getScriptUrl();
@@ -132,6 +126,21 @@ export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap,
   } catch (e: any) {
     return { error: e.message };
   }
+};
+
+export const updateRemoteConfig = async (config: EventConfig) => {
+  const url = getScriptUrl();
+  const payload = {
+    action: 'updateConfig',
+    spreadsheetId: getSpreadsheetId(),
+    config: config
+  };
+
+  return fetch(url, { 
+    method: 'POST', 
+    mode: 'no-cors', 
+    body: JSON.stringify(payload) 
+  });
 };
 
 export const syncRegistration = async (regId: string, data: any, isUpdate = false) => {
