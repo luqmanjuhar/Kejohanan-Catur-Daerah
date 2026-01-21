@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { RegistrationsMap, EventConfig } from './types';
-import { loadAllData, getDistrictKey } from './services/api';
+import { loadAllData, getDistrictKey, resetLocalConfig } from './services/api';
 import RegistrationForm from './components/RegistrationForm';
 import UpdateRegistration from './components/UpdateRegistration';
 import Dashboard from './components/Dashboard/Dashboard';
@@ -27,33 +27,30 @@ function App() {
   const [notification, setNotification] = useState<{msg: string, type: string} | null>(null);
   const [eventConfig, setEventConfig] = useState<EventConfig>(INITIAL_CONFIG);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  /**
-   * Fungsi utama untuk menyegerakkan data dari Google Sheets ke Website.
-   */
   const handleSync = async () => {
     setLoading(true);
+    setConnectionError(null);
     try {
         const result = await loadAllData();
         
-        // Update Konfigurasi Acara (Nama, Venue, Jadual, dll)
-        if (result.config) {
-            setEventConfig(result.config);
-            document.title = result.config.eventName;
-        }
-        
-        // Update Data Pendaftaran untuk Dashboard
-        if (result.registrations) {
-            setRegistrations(result.registrations);
-        }
-        
         if (result.error) {
+            setConnectionError(result.error);
             showNotif(result.error, "error");
         } else {
+            if (result.config) {
+                setEventConfig(result.config);
+                document.title = result.config.eventName;
+            }
+            if (result.registrations) {
+                setRegistrations(result.registrations);
+            }
             showNotif("Sambungan Cloud Berjaya!", "success");
         }
     } catch (error: any) {
-        showNotif("Ralat: Skrip API Google tidak merespon.", "error");
+        setConnectionError("Gagal menyambung ke pelayan API Google.");
+        showNotif("Ralat sambungan API.", "error");
     } finally {
         setLoading(false);
     }
@@ -89,7 +86,6 @@ function App() {
         </div>
       </header>
 
-      {/* Navigation */}
       <nav className="bg-white/90 backdrop-blur-md rounded-2xl shadow-sm p-2 mb-8 sticky top-4 z-40 border border-white/50 shrink-0">
         <div className="flex flex-wrap gap-1 justify-center">
             <NavButton active={activeTab === 'pendaftaran'} onClick={() => setActiveTab('pendaftaran')}>📝 Pendaftaran</NavButton>
@@ -99,7 +95,6 @@ function App() {
         </div>
       </nav>
 
-      {/* Notifications */}
       {notification && (
           <div className={`fixed bottom-8 right-8 z-50 px-6 py-4 rounded-2xl shadow-2xl text-white font-bold animate-slideUp max-w-sm flex items-center gap-3 ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
               <div className="bg-white/20 p-2 rounded-full">
@@ -109,31 +104,51 @@ function App() {
           </div>
       )}
 
-      {/* Main Content */}
-      <main className={`flex-1 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
-        {loading && (
+      <main className="flex-1">
+        {loading ? (
             <div className="flex flex-col items-center justify-center py-20 animate-pulse">
                 <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-orange-600 font-bold">Menghubungkan ke Pangkalan Data...</p>
+                <p className="text-orange-600 font-bold">Menghubungkan ke Pangkalan Data Cloud...</p>
             </div>
-        )}
-
-        {!loading && activeTab === 'pendaftaran' && (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-10 animate-fadeIn">
-                <div className="flex items-center gap-2 mb-8 bg-gray-50 p-1.5 rounded-2xl w-fit">
-                    <button onClick={() => setSubTab('daftar-baru')} className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${subTab === 'daftar-baru' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-400 hover:text-orange-400'}`}>➕ Baru</button>
-                    <button onClick={() => setSubTab('kemaskini')} className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${subTab === 'kemaskini' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-400 hover:text-orange-400'}`}>✏️ Kemaskini</button>
+        ) : connectionError ? (
+            <div className="bg-red-50 border-2 border-red-100 rounded-3xl p-10 text-center animate-fadeIn max-w-2xl mx-auto">
+                <div className="text-5xl mb-4">🔌</div>
+                <h2 className="text-2xl font-bold text-red-800 mb-2">Gagal Menghubungkan Data</h2>
+                <p className="text-red-600 mb-6 font-medium">{connectionError}</p>
+                <div className="flex flex-wrap gap-3 justify-center">
+                    <button onClick={handleSync} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold shadow-lg hover:bg-red-700 transition-all">
+                        Cuba Lagi
+                    </button>
+                    <button onClick={resetLocalConfig} className="px-6 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-all">
+                        Reset Cache Sistem
+                    </button>
                 </div>
-                {subTab === 'daftar-baru' ? 
-                  <RegistrationForm registrations={registrations} onSuccess={(id, d) => { setRegistrations({...registrations, [id]: d}); showNotif(`Pendaftaran Berjaya: ${id}`, 'success'); }} eventConfig={eventConfig} /> : 
-                  <UpdateRegistration localRegistrations={registrations} onUpdateSuccess={() => handleSync()} eventConfig={eventConfig} />
-                }
+                <div className="mt-8 text-left bg-white p-4 rounded-xl border text-xs text-gray-500 space-y-2">
+                    <p className="font-bold text-gray-700 uppercase">Panduan Penyelesaian:</p>
+                    <p>1. Pastikan Google Apps Script dideploy sebagai <b>"Anyone"</b>.</p>
+                    <p>2. Pastikan anda telah klik <b>"Allow"</b> pada Authorization Google.</p>
+                    <p>3. Pastikan Spreadsheet ID <b>{getDistrictKey().toUpperCase()}</b> adalah betul.</p>
+                </div>
+            </div>
+        ) : (
+            <div className="animate-fadeIn">
+                {activeTab === 'pendaftaran' && (
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-10">
+                        <div className="flex items-center gap-2 mb-8 bg-gray-50 p-1.5 rounded-2xl w-fit">
+                            <button onClick={() => setSubTab('daftar-baru')} className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${subTab === 'daftar-baru' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-400 hover:text-orange-400'}`}>➕ Baru</button>
+                            <button onClick={() => setSubTab('kemaskini')} className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${subTab === 'kemaskini' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-400 hover:text-orange-400'}`}>✏️ Kemaskini</button>
+                        </div>
+                        {subTab === 'daftar-baru' ? 
+                          <RegistrationForm registrations={registrations} onSuccess={(id, d) => { setRegistrations({...registrations, [id]: d}); showNotif(`Pendaftaran Berjaya: ${id}`, 'success'); }} eventConfig={eventConfig} /> : 
+                          <UpdateRegistration localRegistrations={registrations} onUpdateSuccess={() => handleSync()} eventConfig={eventConfig} />
+                        }
+                    </div>
+                )}
+                {activeTab === 'dashboard' && <Dashboard registrations={registrations} onRefresh={handleSync} onOpenSetup={handleOpenSetup} />}
+                {activeTab === 'pengumuman' && <Announcements config={eventConfig} />}
+                {activeTab === 'dokumen' && <Documents config={eventConfig} />}
             </div>
         )}
-
-        {!loading && activeTab === 'dashboard' && <Dashboard registrations={registrations} onRefresh={handleSync} onOpenSetup={handleOpenSetup} />}
-        {!loading && activeTab === 'pengumuman' && <Announcements config={eventConfig} />}
-        {!loading && activeTab === 'dokumen' && <Documents config={eventConfig} />}
       </main>
 
       <footer className="mt-12 mb-8 text-center shrink-0">

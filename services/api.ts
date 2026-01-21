@@ -1,7 +1,7 @@
 
 import { RegistrationsMap, EventConfig, ScheduleDay, DistrictConfig } from "../types";
 
-// --- KONFIGURASI RASMI PASIR GUDANG ---
+// --- KONFIGURASI RASMI PASIR GUDANG (HARDCODED) ---
 const PG_SS_ID = '1iKLf--vY8U75GuIewn1OJbNGFsDPDaqNk8njAAsUSU0';
 const PG_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHa79w-hI1uYyfvoW58KyelV4GIlH-5yEhpVwEqar2UMyoZgXJGZUXkRzJUOW7xawW/exec';
 
@@ -15,75 +15,75 @@ export const getDistrictKey = (): string => {
 const CURRENT_KEY = getDistrictKey();
 
 export const getScriptUrl = (): string => {
-  // Jika subdomain pasir gudang, paksa guna URL yang diberikan user
   if (CURRENT_KEY === 'mssdpasirgudang') return PG_SCRIPT_URL;
-  
   const saved = localStorage.getItem(`scriptUrl_${CURRENT_KEY}`);
   return saved || PG_SCRIPT_URL;
 };
 
 export const getSpreadsheetId = (): string => {
-  // Jika subdomain pasir gudang, paksa guna ID yang diberikan user
   if (CURRENT_KEY === 'mssdpasirgudang') return PG_SS_ID;
-  
   const saved = localStorage.getItem(`spreadsheetId_${CURRENT_KEY}`);
   return saved || PG_SS_ID;
 };
 
 /**
- * Fungsi JSONP yang diperkukuh untuk Google Apps Script
+ * Fungsi JSONP untuk komunikasi rentas domain dengan Google Apps Script.
  */
 const jsonpRequest = (url: string, params: Record<string, string>): Promise<any> => {
   return new Promise((resolve, reject) => {
     const callbackName = 'cb_' + Math.random().toString(36).substring(7);
+    const script = document.createElement('script');
     
+    // Timer untuk timeout
+    const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error("Masa tamat (30s). Google Apps Script tidak merespon. Sila pastikan skrip dideploy sebagai 'Anyone'."));
+    }, 30000);
+
     const cleanup = () => {
+      clearTimeout(timeout);
       delete (window as any)[callbackName];
       const s = document.getElementById(callbackName);
       if (s) s.remove();
     };
 
+    // Callback function
     (window as any)[callbackName] = (data: any) => {
       cleanup();
+      console.log("API Response received:", data);
       if (data && data.error) reject(new Error(data.error));
       else resolve(data);
     };
 
-    // Tambah parameter untuk elakkan cache
+    // Menangani ralat muatan skrip
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("Gagal menghubungi Google Apps Script. Pastikan URL betul dan Deployment disetkan sebagai 'Anyone'."));
+    };
+
+    // Bina URL lengkap dengan nocache t
     const queryParams = { ...params, callback: callbackName, t: Date.now().toString() };
     const queryString = Object.entries(queryParams)
       .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
       .join('&');
     
-    const finalUrl = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
-
-    const script = document.createElement('script');
     script.id = callbackName;
-    script.src = finalUrl;
+    script.src = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
     script.async = true;
-    
-    script.onerror = () => { 
-      cleanup(); 
-      reject(new Error("Gagal memuatkan skrip API. Sila pastikan Web App di-deploy sebagai 'Anyone'.")); 
-    };
 
+    console.log("Fetching from Cloud:", script.src);
     document.head.appendChild(script);
-
-    // Timeout 30 saat
-    setTimeout(() => { 
-      if ((window as any)[callbackName]) { 
-        cleanup(); 
-        reject(new Error("Masa tamat. Skrip Google tidak merespon.")); 
-      } 
-    }, 30000);
   });
 };
 
+/**
+ * Memuatkan semua data dari Google Sheets.
+ */
 export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap, config?: EventConfig, error?: string }> => {
   const ssId = getSpreadsheetId();
   const scriptUrl = getScriptUrl();
   
-  if (!ssId || !scriptUrl) return { error: "Konfigurasi pangkalan data tidak lengkap." };
+  if (!ssId || !scriptUrl) return { error: "Konfigurasi ID atau URL tidak ditemui." };
   
   try {
     const result = await jsonpRequest(scriptUrl, { 
@@ -92,7 +92,8 @@ export const loadAllData = async (): Promise<{ registrations?: RegistrationsMap,
     });
     return result;
   } catch (e: any) {
-    return { error: e.message };
+    console.error("LoadAllData Error:", e);
+    return { error: e.message || "Ralat tidak diketahui semasa memuatkan data." };
   }
 };
 
@@ -105,6 +106,7 @@ export const syncConfigToCloud = async (config: EventConfig) => {
   return fetch(getScriptUrl(), { 
     method: 'POST', 
     mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload) 
   });
 };
@@ -140,6 +142,7 @@ export const saveLocalConfig = (spreadsheetId: string, webAppUrl: string) => {
 export const resetLocalConfig = () => {
     localStorage.removeItem(`spreadsheetId_${CURRENT_KEY}`);
     localStorage.removeItem(`scriptUrl_${CURRENT_KEY}`);
+    console.log("Pangkalan data local dibersihkan. Memuat semula...");
     window.location.reload();
 };
 
