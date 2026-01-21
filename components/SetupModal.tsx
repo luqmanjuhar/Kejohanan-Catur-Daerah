@@ -30,9 +30,7 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
   const handleSaveAll = async () => {
     setError(null);
     setIsSaving(true);
-
     try {
-        // 1. Simpan Kredensial dahulu
         const check = await validateCredentials(spreadsheetId, webAppUrl);
         if (!check.success) {
             setError(check.error || "Gagal menyambung ke Cloud.");
@@ -40,25 +38,32 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
             return;
         }
         saveConfig(spreadsheetId, webAppUrl);
-
-        // 2. Simpan Konfigurasi ke Cloud
         await updateRemoteConfig(config);
-        
-        // Simpan lokal juga
         localStorage.setItem(`eventConfig_${getDistrictKey()}`, JSON.stringify(config));
-        
         onClose();
         window.location.reload(); 
     } catch (err: any) {
-        setError("Gagal menyimpan ke Cloud. Pastikan Web App disetkan kepada 'Anyone'.");
+        setError("Ralat semasa menyimpan ke Cloud.");
     } finally {
         setIsSaving(false);
     }
   };
 
-  const updateSchedule = (type: 'primary' | 'secondary', dayIndex: number, itemIndex: number, field: 'time' | 'activity', value: string) => {
+  const updateScheduleItem = (type: 'primary' | 'secondary', dayIndex: number, itemIndex: number, field: 'time' | 'activity', value: string) => {
     const newConfig = { ...config };
     newConfig.schedules[type][dayIndex].items[itemIndex][field] = value;
+    setConfig(newConfig);
+  };
+
+  const addScheduleDay = (type: 'primary' | 'secondary') => {
+    const newConfig = { ...config };
+    newConfig.schedules[type].push({ date: 'HARI BARU', items: [{ time: '', activity: '' }] });
+    setConfig(newConfig);
+  };
+
+  const removeScheduleDay = (type: 'primary' | 'secondary', dayIndex: number) => {
+    const newConfig = { ...config };
+    newConfig.schedules[type].splice(dayIndex, 1);
     setConfig(newConfig);
   };
 
@@ -76,13 +81,13 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
 
   const getScriptContent = () => {
     return `/**
- * Backend MSSD Catur - Pemetaan INFO, JADUAL, PAUTAN, DOKUMEN
+ * Backend MSSD Catur v2.5 - Cloud Connector
+ * Pasang skrip ini pada Google Apps Script & Deploy sebagai Web App.
  */
 function doGet(e) {
   const action = e.parameter.action;
   const ssId = e.parameter.spreadsheetId;
   const callback = e.parameter.callback;
-  
   try {
     const ss = SpreadsheetApp.openById(ssId);
     let result = {};
@@ -100,7 +105,6 @@ function doGet(e) {
 function doPost(e) {
   const data = JSON.parse(e.postData.contents);
   const ss = SpreadsheetApp.openById(data.spreadsheetId);
-  
   if (data.action === 'submit' || data.action === 'update') {
     return saveRegistration(ss, data);
   } else if (data.action === 'updateConfig') {
@@ -109,51 +113,52 @@ function doPost(e) {
 }
 
 function saveRemoteConfig(ss, config) {
-  const infoSheet = ss.getSheetByName('INFO') || ss.insertSheet('INFO');
+  const getSheet = (name) => ss.getSheetByName(name) || ss.insertSheet(name);
+  
+  const infoSheet = getSheet('INFO');
   infoSheet.clear().appendRow(['Nama', 'Lokasi', 'Telefon Admin']);
   infoSheet.appendRow([config.eventName, config.eventVenue, config.adminPhone]);
 
-  const pautanSheet = ss.getSheetByName('PAUTAN') || ss.insertSheet('PAUTAN');
+  const pautanSheet = getSheet('PAUTAN');
   pautanSheet.clear().appendRow(['Peraturan', 'Keputusan', 'Gambar']);
   pautanSheet.appendRow([config.links.rules, config.links.results, config.links.photos]);
 
-  const docSheet = ss.getSheetByName('DOKUMEN') || ss.insertSheet('DOKUMEN');
+  const docSheet = getSheet('DOKUMEN');
   docSheet.clear().appendRow(['Jemputan', 'Mesyuarat', 'Arbiter']);
   docSheet.appendRow([config.documents.invitation, config.documents.meeting, config.documents.arbiter]);
 
-  const jadualSheet = ss.getSheetByName('JADUAL') || ss.insertSheet('JADUAL');
+  const jadualSheet = getSheet('JADUAL');
   jadualSheet.clear().appendRow(['Kategori', 'Hari', 'Masa', 'Aktiviti']);
-  
-  config.schedules.primary.forEach(day => {
-    day.items.forEach(item => jadualSheet.appendRow(['RENDAH', day.date, item.time, item.activity]));
-  });
-  config.schedules.secondary.forEach(day => {
-    day.items.forEach(item => jadualSheet.appendRow(['MENENGAH', day.date, item.time, item.activity]));
-  });
+  config.schedules.primary.forEach(day => day.items.forEach(item => jadualSheet.appendRow(['RENDAH', day.date, item.time, item.activity])));
+  config.schedules.secondary.forEach(day => day.items.forEach(item => jadualSheet.appendRow(['MENENGAH', day.date, item.time, item.activity])));
 
   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function fetchRemoteConfig(ss) {
-  const info = ss.getSheetByName('INFO')?.getRange('A2:C2').getValues()[0] || ["KEJOHANAN CATUR", "LOKASI", "60123"];
-  const pautan = ss.getSheetByName('PAUTAN')?.getRange('A2:C2').getValues()[0] || ["#","#","#"];
-  const doc = ss.getSheetByName('DOKUMEN')?.getRange('A2:C2').getValues()[0] || ["#","#","#"];
-  const jadualData = ss.getSheetByName('JADUAL')?.getDataRange().getValues() || [];
+  const getVal = (sheetName) => {
+    const sheet = ss.getSheetByName(sheetName);
+    return sheet ? sheet.getRange('A2:C2').getValues()[0] : ["#","#","#"];
+  };
+  const info = getVal('INFO');
+  const pautan = getVal('PAUTAN');
+  const doc = getVal('DOKUMEN');
+  const jadualSheet = ss.getSheetByName('JADUAL');
+  const jadualData = jadualSheet ? jadualSheet.getDataRange().getValues() : [];
   
   const schedules = { primary: [], secondary: [] };
   for (let i = 1; i < jadualData.length; i++) {
     const [cat, day, time, act] = jadualData[i];
     if (!cat || !day) continue;
-    const target = cat.toLowerCase().includes('rendah') ? 'primary' : 'secondary';
+    const target = cat === 'RENDAH' ? 'primary' : 'secondary';
     let dayObj = schedules[target].find(d => d.date === day);
     if (!dayObj) { dayObj = { date: day, items: [] }; schedules[target].push(dayObj); }
     dayObj.items.push({ time, activity: act });
   }
 
   return {
-    eventName: info[0], eventVenue: info[1], adminPhone: info[2],
-    schedules: schedules,
-    links: { rules: pautan[0], results: pautan[1], photos: pautan[2] },
+    eventName: info[0] || "KEJOHANAN CATUR", eventVenue: info[1] || "LOKASI", adminPhone: info[2] || "60123",
+    schedules, links: { rules: pautan[0], results: pautan[1], photos: pautan[2] },
     documents: { invitation: doc[0], meeting: doc[1], arbiter: doc[2] }
   };
 }
@@ -181,20 +186,18 @@ function fetchRegistrations(ss) {
 }
 
 function saveRegistration(ss, data) {
-  const schoolSheet = ss.getSheetByName('SEKOLAH') || ss.insertSheet('SEKOLAH');
-  const teacherSheet = ss.getSheetByName('GURU') || ss.insertSheet('GURU');
-  const studentSheet = ss.getSheetByName('PELAJAR') || ss.insertSheet('PELAJAR');
+  const getSheet = (name) => ss.getSheetByName(name) || ss.insertSheet(name);
+  const schoolSheet = getSheet('SEKOLAH');
+  const teacherSheet = getSheet('GURU');
+  const studentSheet = getSheet('PELAJAR');
   const id = data.registrationId;
-  
   [schoolSheet, teacherSheet, studentSheet].forEach(sheet => {
     const vals = sheet.getDataRange().getValues();
     for (let i = vals.length - 1; i >= 1; i--) if (vals[i][0] === id) sheet.deleteRow(i + 1);
   });
-  
   schoolSheet.appendRow([id, data.schoolName, data.schoolType, data.teachers.length, data.students.length, 0, 0, 0, 0, 0, new Date(), new Date(), 'AKTIF']);
   data.teachers.forEach(t => teacherSheet.appendRow([id, data.schoolName, t.name, t.email, t.phone, t.position]));
   data.students.forEach(s => studentSheet.appendRow([id, data.schoolName, s.name, s.ic, s.gender, s.category, '', s.race, s.playerId]));
-  
   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -210,33 +213,33 @@ function searchRegistration(ss, id, pass) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-[2rem] max-w-4xl w-full shadow-2xl flex flex-col overflow-hidden animate-fadeIn my-auto">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2.5rem] max-w-5xl w-full shadow-2xl flex flex-col overflow-hidden animate-fadeIn h-[90vh]">
         {/* Header */}
-        <div className="p-6 bg-orange-600 text-white flex justify-between items-center shadow-lg relative z-10">
-            <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-xl"><Cloud size={24}/></div>
+        <div className="p-8 bg-orange-600 text-white flex justify-between items-center relative">
+            <div className="flex items-center gap-4">
+                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm"><Cloud size={28}/></div>
                 <div>
-                    <h2 className="text-xl font-bold">MSSD Catur Setup</h2>
-                    <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Daerah: {getDistrictKey()}</p>
+                    <h2 className="text-2xl font-black tracking-tight">Setup Kejohanan</h2>
+                    <p className="text-xs font-bold opacity-70 tracking-widest uppercase">Daerah Pasir Gudang</p>
                 </div>
             </div>
-            <button onClick={onClose} className="hover:bg-black/10 p-2 rounded-full transition-colors"><X size={24} /></button>
+            <button onClick={onClose} className="bg-white/10 hover:bg-black/20 p-3 rounded-full transition-all"><X size={24} /></button>
         </div>
         
-        {/* Tab Navigation */}
-        <div className="flex flex-wrap bg-gray-50 border-b overflow-x-auto">
+        {/* Navigation */}
+        <div className="flex bg-gray-50 border-b overflow-x-auto no-scrollbar">
             {[
-                { id: 'cloud', label: 'Cloud', icon: <Cloud size={16}/> },
-                { id: 'info', label: 'Maklumat', icon: <Info size={16}/> },
-                { id: 'jadual', label: 'Jadual', icon: <Calendar size={16}/> },
-                { id: 'pautan', label: 'Pautan', icon: <Link size={16}/> },
-                { id: 'dokumen', label: 'Dokumen', icon: <FileText size={16}/> },
+                { id: 'cloud', label: 'Cloud', icon: <Cloud size={18}/> },
+                { id: 'info', label: 'Info', icon: <Info size={18}/> },
+                { id: 'jadual', label: 'Jadual', icon: <Calendar size={18}/> },
+                { id: 'pautan', label: 'Pautan', icon: <Link size={18}/> },
+                { id: 'dokumen', label: 'Dokumen', icon: <FileText size={18}/> },
             ].map(tab => (
                 <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${
+                    className={`flex items-center gap-3 px-8 py-5 text-sm font-black transition-all border-b-4 whitespace-nowrap ${
                         activeTab === tab.id ? 'border-orange-600 text-orange-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'
                     }`}
                 >
@@ -245,118 +248,129 @@ function searchRegistration(ss, id, pass) {
             ))}
         </div>
 
-        {/* Content Area */}
-        <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] bg-white">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-white">
             {error && (
-                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-xl flex items-start gap-3 animate-shake">
-                    <AlertCircle className="shrink-0 mt-0.5" size={20} />
+                <div className="bg-red-50 border-2 border-red-100 p-5 rounded-3xl flex items-start gap-4 animate-shake">
+                    <AlertCircle className="text-red-500 shrink-0 mt-1" size={24} />
                     <div className="text-sm">
-                        <p className="font-bold">Ralat Konfigurasi!</p>
-                        <p>{error}</p>
+                        <p className="font-black text-red-800">Ralat Konfigurasi</p>
+                        <p className="text-red-600 font-medium">{error}</p>
                     </div>
                 </div>
             )}
 
             {activeTab === 'cloud' && (
-                <div className="space-y-6 animate-fadeIn">
-                    <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-8 animate-fadeIn">
+                    <div className="grid md:grid-cols-2 gap-8">
                         <div>
-                            <label className="block text-xs font-black text-gray-400 mb-2 uppercase tracking-widest">Spreadsheet ID</label>
-                            <input type="text" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-mono text-sm" placeholder="ID dari URL Google Sheet" />
+                            <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-[0.2em]">Spreadsheet ID</label>
+                            <input type="text" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all font-mono text-xs" />
                         </div>
                         <div>
-                            <label className="block text-xs font-black text-gray-400 mb-2 uppercase tracking-widest">Script URL</label>
-                            <input type="text" value={webAppUrl} onChange={(e) => setWebAppUrl(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-mono text-sm" placeholder="https://script.google.com/macros/s/.../exec" />
+                            <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-[0.2em]">Apps Script URL</label>
+                            <input type="text" value={webAppUrl} onChange={(e) => setWebAppUrl(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all font-mono text-xs" />
                         </div>
                     </div>
-                    <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
-                        <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-indigo-800 font-bold flex items-center gap-2 text-sm"><FileText size={16}/> SCRIPT TEMPLATE</h4>
-                            <button onClick={() => { navigator.clipboard.writeText(getScriptContent()); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-indigo-700 shadow-sm transition-all">
-                                {copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'TELAH DISALIN' : 'SALIN KOD'}
+                    <div className="bg-indigo-50/50 p-8 rounded-[2rem] border-2 border-indigo-100/50">
+                        <div className="flex justify-between items-center mb-6">
+                            <h4 className="text-indigo-900 font-black text-sm tracking-tight flex items-center gap-2">
+                                <FileText size={20} className="text-indigo-600"/> TEMPLATE BACKEND SCRIPT
+                            </h4>
+                            <button onClick={() => { navigator.clipboard.writeText(getScriptContent()); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-black text-[10px] flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all uppercase">
+                                {copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'Berjaya Disalin' : 'Salin Skrip'}
                             </button>
                         </div>
-                        <p className="text-[10px] text-indigo-400 leading-relaxed mb-4">
-                            Salin kod di atas dan tampal ke dalam <b>Extensions &gt; Apps Script</b> di Google Sheet anda. Kemudian <b>Deploy &gt; New Deployment</b> sebagai Web App.
+                        <p className="text-xs text-indigo-500/80 leading-relaxed font-bold">
+                            Salin kod di atas dan tampal ke dalam Extensions &gt; Apps Script di Google Sheet anda. <br/>Pastikan anda Deploy sebagai "Web App" dan beri akses kepada "Anyone".
                         </p>
                     </div>
                 </div>
             )}
 
             {activeTab === 'info' && (
-                <div className="space-y-6 animate-fadeIn">
+                <div className="space-y-8 animate-fadeIn max-w-2xl">
                     <div>
-                        <label className="block text-xs font-black text-gray-400 mb-2 uppercase tracking-widest">Nama Kejohanan</label>
-                        <input type="text" value={config.eventName} onChange={(e) => setConfig({...config, eventName: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-bold" />
+                        <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-[0.2em]">Nama Rasmi Kejohanan</label>
+                        <input type="text" value={config.eventName} onChange={(e) => setConfig({...config, eventName: e.target.value})} className="w-full px-6 py-4 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-black text-lg text-orange-600" />
                     </div>
                     <div className="grid md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-xs font-black text-gray-400 mb-2 uppercase tracking-widest">Lokasi Kejohanan</label>
-                            <input type="text" value={config.eventVenue} onChange={(e) => setConfig({...config, eventVenue: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all" />
+                            <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-[0.2em]">Lokasi / Venue</label>
+                            <input type="text" value={config.eventVenue} onChange={(e) => setConfig({...config, eventVenue: e.target.value})} className="w-full px-5 py-4 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-bold" />
                         </div>
                         <div>
-                            <label className="block text-xs font-black text-gray-400 mb-2 uppercase tracking-widest">No. Telefon Admin (WhatsApp)</label>
-                            <input type="text" value={config.adminPhone} onChange={(e) => setConfig({...config, adminPhone: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all" />
+                            <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-[0.2em]">No. Telefon Admin</label>
+                            <input type="text" value={config.adminPhone} onChange={(e) => setConfig({...config, adminPhone: e.target.value})} className="w-full px-5 py-4 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-bold" />
                         </div>
                     </div>
                 </div>
             )}
 
             {activeTab === 'jadual' && (
-                <div className="space-y-8 animate-fadeIn">
+                <div className="space-y-12 animate-fadeIn">
                     {(['primary', 'secondary'] as const).map(type => (
-                        <div key={type} className="bg-gray-50 p-6 rounded-[2rem] border">
-                            <h4 className="font-bold text-gray-700 mb-4 flex items-center gap-2 uppercase tracking-tighter">
-                                {type === 'primary' ? '🏫 Sekolah Rendah' : '🎓 Sekolah Menengah'}
-                            </h4>
-                            {config.schedules[type].map((day, dIdx) => (
-                                <div key={dIdx} className="mb-6 bg-white p-4 rounded-2xl border">
-                                    <input 
-                                        type="text" 
-                                        value={day.date} 
-                                        onChange={(e) => {
-                                            const newConfig = {...config};
-                                            newConfig.schedules[type][dIdx].date = e.target.value;
-                                            setConfig(newConfig);
-                                        }}
-                                        className="font-black text-orange-600 mb-4 outline-none border-b-2 border-orange-50 w-full"
-                                    />
-                                    <div className="space-y-3">
-                                        {day.items.map((item, iIdx) => (
-                                            <div key={iIdx} className="flex gap-2">
-                                                <input value={item.time} onChange={(e) => updateSchedule(type, dIdx, iIdx, 'time', e.target.value)} placeholder="Masa" className="w-32 text-xs p-2 border rounded-xl" />
-                                                <input value={item.activity} onChange={(e) => updateSchedule(type, dIdx, iIdx, 'activity', e.target.value)} placeholder="Aktiviti" className="flex-1 text-xs p-2 border rounded-xl" />
-                                                <button onClick={() => removeScheduleItem(type, dIdx, iIdx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
-                                            </div>
-                                        ))}
-                                        <button onClick={() => addScheduleItem(type, dIdx)} className="w-full py-2 bg-orange-50 text-orange-600 text-[10px] font-bold rounded-xl border border-dashed border-orange-200 hover:bg-orange-100 flex items-center justify-center gap-1">
-                                            <Plus size={12}/> TAMBAH AKTIVITI
-                                        </button>
+                        <div key={type} className="bg-gray-50/50 p-8 rounded-[2.5rem] border-2 border-gray-100">
+                            <div className="flex justify-between items-center mb-8">
+                                <h4 className="font-black text-gray-800 flex items-center gap-3 text-lg">
+                                    {type === 'primary' ? '🏫 Sekolah Rendah' : '🎓 Sekolah Menengah'}
+                                </h4>
+                                <button onClick={() => addScheduleDay(type)} className="px-5 py-2.5 bg-gray-800 text-white text-[10px] font-black rounded-xl hover:bg-black transition-all flex items-center gap-2 uppercase">
+                                    <Plus size={14}/> Tambah Hari
+                                </button>
+                            </div>
+                            
+                            <div className="grid lg:grid-cols-2 gap-8">
+                                {config.schedules[type].map((day, dIdx) => (
+                                    <div key={dIdx} className="bg-white p-6 rounded-[2rem] border-2 border-gray-100 shadow-sm relative group">
+                                        <button onClick={() => removeScheduleDay(type, dIdx)} className="absolute -top-3 -right-3 bg-red-100 text-red-500 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-sm"><Trash2 size={16}/></button>
+                                        <input 
+                                            type="text" 
+                                            value={day.date} 
+                                            onChange={(e) => {
+                                                const newConfig = {...config};
+                                                newConfig.schedules[type][dIdx].date = e.target.value;
+                                                setConfig(newConfig);
+                                            }}
+                                            className="font-black text-orange-600 mb-6 outline-none border-b-4 border-orange-50 w-full text-base focus:border-orange-500 uppercase pb-2"
+                                        />
+                                        <div className="space-y-4">
+                                            {day.items.map((item, iIdx) => (
+                                                <div key={iIdx} className="flex gap-3">
+                                                    <input value={item.time} onChange={(e) => updateScheduleItem(type, dIdx, iIdx, 'time', e.target.value)} placeholder="Masa" className="w-28 text-[11px] font-bold p-3 border-2 border-gray-50 rounded-xl focus:border-orange-200 outline-none" />
+                                                    <input value={item.activity} onChange={(e) => updateScheduleItem(type, dIdx, iIdx, 'activity', e.target.value)} placeholder="Aktiviti" className="flex-1 text-[11px] font-bold p-3 border-2 border-gray-50 rounded-xl focus:border-orange-200 outline-none" />
+                                                    <button onClick={() => removeScheduleItem(type, dIdx, iIdx)} className="text-red-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
+                                                </div>
+                                            ))}
+                                            <button onClick={() => addScheduleItem(type, dIdx)} className="w-full py-3 bg-orange-50 text-orange-600 text-[10px] font-black rounded-xl border-2 border-dashed border-orange-100 hover:bg-orange-100 flex items-center justify-center gap-2 transition-all">
+                                                <Plus size={14}/> TAMBAH SLOT MASA
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     ))}
                 </div>
             )}
 
             {activeTab === 'pautan' && (
-                <div className="space-y-6 animate-fadeIn">
+                <div className="space-y-8 animate-fadeIn max-w-2xl">
                     {Object.entries(config.links).map(([key, val]) => (
                         <div key={key}>
-                            <label className="block text-xs font-black text-gray-400 mb-2 uppercase tracking-widest">{key}</label>
-                            <input type="text" value={val} onChange={(e) => setConfig({...config, links: {...config.links, [key]: e.target.value}})} className="w-full px-4 py-3 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-mono text-xs" />
+                            <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-[0.2em]">{key}</label>
+                            <input type="text" value={val} onChange={(e) => setConfig({...config, links: {...config.links, [key]: e.target.value}})} className="w-full px-5 py-4 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-mono text-xs text-blue-600" placeholder="https://..." />
                         </div>
                     ))}
                 </div>
             )}
 
             {activeTab === 'dokumen' && (
-                <div className="space-y-6 animate-fadeIn">
+                <div className="space-y-8 animate-fadeIn max-w-2xl">
                     {Object.entries(config.documents).map(([key, val]) => (
                         <div key={key}>
-                            <label className="block text-xs font-black text-gray-400 mb-2 uppercase tracking-widest">{key}</label>
-                            <input type="text" value={val} onChange={(e) => setConfig({...config, documents: {...config.documents, [key]: e.target.value}})} className="w-full px-4 py-3 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-mono text-xs" />
+                            <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-[0.2em]">{key}</label>
+                            <input type="text" value={val} onChange={(e) => setConfig({...config, documents: {...config.documents, [key]: e.target.value}})} className="w-full px-5 py-4 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none transition-all font-mono text-xs text-red-600" placeholder="https://..." />
                         </div>
                     ))}
                 </div>
@@ -364,12 +378,15 @@ function searchRegistration(ss, id, pass) {
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-gray-50 flex justify-between items-center border-t">
-            <p className="text-[10px] text-gray-400 max-w-[50%]">Klik simpan untuk mengemas kini semua tab maklumat kejohanan ke Spreadsheet Cloud anda.</p>
-            <div className="flex gap-3">
-                <button onClick={onClose} className="px-6 py-2.5 font-bold text-gray-400 hover:text-gray-600 transition-colors">BATAL</button>
-                <button onClick={handleSaveAll} disabled={isSaving} className="px-8 py-3 bg-orange-600 text-white rounded-[1.25rem] font-bold shadow-xl shadow-orange-100 flex items-center gap-2 disabled:bg-orange-300 hover:bg-orange-700 transition-all transform active:scale-95">
-                    {isSaving ? <><Loader2 className="animate-spin" size={18}/> MENYIMPAN...</> : <><Save size={18}/> SIMPAN KE CLOUD</>}
+        <div className="p-8 bg-gray-50 flex justify-between items-center border-t border-gray-100">
+            <div className="flex items-center gap-2 text-gray-400">
+                <AlertCircle size={14}/>
+                <p className="text-[10px] font-bold uppercase tracking-wider">Perubahan akan disimpan terus ke Google Spreadsheet anda.</p>
+            </div>
+            <div className="flex gap-4">
+                <button onClick={onClose} className="px-8 py-3 font-black text-gray-400 hover:text-gray-600 transition-colors uppercase text-xs">Batal</button>
+                <button onClick={handleSaveAll} disabled={isSaving} className="px-10 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-xl shadow-orange-100 flex items-center gap-3 disabled:bg-orange-300 hover:bg-orange-700 transition-all transform active:scale-95 uppercase text-xs tracking-widest">
+                    {isSaving ? <><Loader2 className="animate-spin" size={18}/> Menyimpan...</> : <><Save size={18}/> Simpan Ke Cloud</>}
                 </button>
             </div>
         </div>
