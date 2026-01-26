@@ -78,7 +78,6 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
         </div>
        </div>
 
-       {/* Cards */}
        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             <StatCard label="Pendaftaran" value={Object.keys(registrations).length} icon={<GraduationCap />} color="orange" />
             <StatCard label="Pelajar" value={stats.totalStudents} icon={<Users />} color="amber" />
@@ -86,11 +85,9 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
             <StatCard label="Guru" value={stats.totalTeachers} icon={<UserCheck />} color="red" />
        </div>
 
-       {/* Tree Breakdown */}
        <div className="bg-white rounded-[2rem] p-6 md:p-10 border-2 border-orange-50 shadow-sm">
             <h3 className="text-lg font-black text-gray-800 mb-8 text-center uppercase tracking-widest border-b-2 border-orange-100 pb-4">Analisis Kategori Pasir Gudang</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-                {/* Primary */}
                 <div className="text-center">
                     <div className="bg-emerald-600 text-white px-6 py-2.5 rounded-2xl font-black mb-6 inline-block shadow-xl shadow-emerald-100 text-xs uppercase tracking-widest">
                         <div className="text-2xl">{stats.counters.primary.schools.size}</div>
@@ -106,23 +103,9 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
                                 <span className="block text-xl mb-1">{stats.counters.primary.u12f}</span> PEREMPUAN
                             </div>
                         </div>
-                        
-                        <div className="mt-4 pt-4 border-t-2 border-emerald-100/50">
-                            <div className="text-[10px] font-black text-emerald-800 mb-3 text-left uppercase tracking-widest opacity-60">Mengikut Bangsa:</div>
-                            <div className="grid grid-cols-1 gap-1.5 text-[11px] font-bold text-left">
-                                {Object.entries(stats.counters.primary.race).map(([race, count]) => (
-                                    (count as number) > 0 && (
-                                    <div key={race} className="flex justify-between bg-white px-3 py-1.5 rounded-xl border border-emerald-50 shadow-sm">
-                                        <span className="text-emerald-700">{race}</span> <span className="text-emerald-900">{count}</span>
-                                    </div>
-                                    )
-                                ))}
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                {/* Secondary */}
                 <div className="text-center">
                     <div className="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-black mb-6 inline-block shadow-xl shadow-indigo-100 text-xs uppercase tracking-widest">
                         <div className="text-2xl">{stats.counters.secondary.schools.size}</div>
@@ -130,49 +113,13 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
                     </div>
                     <div className="space-y-6 mx-auto">
                         <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-6">
-                            <div className="font-black text-indigo-800 mb-4 uppercase text-xs tracking-wider">Bawah 15 Tahun (U15)</div>
-                            <div className="grid grid-cols-2 gap-3 text-xs mb-6 font-black">
+                            <div className="font-black text-indigo-800 mb-4 uppercase text-xs tracking-wider">U15 & U18 (Menengah)</div>
+                            <div className="grid grid-cols-2 gap-3 text-xs font-black">
                                 <div className="bg-white border-2 border-blue-100 text-blue-600 px-3 py-3 rounded-2xl shadow-sm">
-                                    <span className="block text-xl mb-1">{stats.counters.secondary.u15m}</span> LELAKI
+                                    <span className="block text-xl mb-1">{stats.counters.secondary.u15m + stats.counters.secondary.u18m}</span> LELAKI
                                 </div>
                                 <div className="bg-white border-2 border-pink-100 text-pink-600 px-3 py-3 rounded-2xl shadow-sm">
-                                    <span className="block text-xl mb-1">{stats.counters.secondary.u15f}</span> PEREMPUAN
-                                </div>
-                            </div>
-                            <div className="mt-4 pt-4 border-t-2 border-indigo-100/50">
-                                <div className="text-[10px] font-black text-indigo-800 mb-3 text-left uppercase tracking-widest opacity-60">U15 Bangsa:</div>
-                                <div className="grid grid-cols-1 gap-1.5 text-[11px] font-bold text-left">
-                                    {Object.entries(stats.counters.secondary.raceU15).map(([race, count]) => (
-                                        (count as number) > 0 && (
-                                        <div key={race} className="flex justify-between bg-white px-3 py-1.5 rounded-xl border border-indigo-50 shadow-sm">
-                                            <span className="text-indigo-700">{race}</span> <span className="text-indigo-900">{count}</span>
-                                        </div>
-                                        )
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-6">
-                            <div className="font-black text-indigo-800 mb-4 uppercase text-xs tracking-wider">Bawah 18 Tahun (U18)</div>
-                            <div className="grid grid-cols-2 gap-3 text-xs mb-6 font-black">
-                                <div className="bg-white border-2 border-blue-100 text-blue-600 px-3 py-3 rounded-2xl shadow-sm">
-                                    <span className="block text-xl mb-1">{stats.counters.secondary.u18m}</span> LELAKI
-                                </div>
-                                <div className="bg-white border-2 border-pink-100 text-pink-600 px-3 py-3 rounded-2xl shadow-sm">
-                                    <span className="block text-xl mb-1">{stats.counters.secondary.u18f}</span> PEREMPUAN
-                                </div>
-                            </div>
-                            <div className="mt-4 pt-4 border-t-2 border-indigo-100/50">
-                                <div className="text-[10px] font-black text-indigo-800 mb-3 text-left uppercase tracking-widest opacity-60">U18 Bangsa:</div>
-                                <div className="grid grid-cols-1 gap-1.5 text-[11px] font-bold text-left">
-                                    {Object.entries(stats.counters.secondary.raceU18).map(([race, count]) => (
-                                        (count as number) > 0 && (
-                                        <div key={race} className="flex justify-between bg-white px-3 py-1.5 rounded-xl border border-indigo-50 shadow-sm">
-                                            <span className="text-indigo-700">{race}</span> <span className="text-indigo-900">{count}</span>
-                                        </div>
-                                        )
-                                    ))}
+                                    <span className="block text-xl mb-1">{stats.counters.secondary.u15f + stats.counters.secondary.u18f}</span> PEREMPUAN
                                 </div>
                             </div>
                         </div>
@@ -181,7 +128,6 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
             </div>
        </div>
 
-       {/* School List */}
        <div className="bg-white rounded-[2rem] border-2 border-orange-50 p-6 md:p-10 shadow-sm">
             <h3 className="text-lg font-black text-gray-800 mb-6 flex items-center gap-3">
                 <div className="bg-orange-600 text-white p-2 rounded-xl"><School size={20}/></div>
@@ -253,17 +199,6 @@ const SchoolListItem: React.FC<{ id: string; reg: Registration }> = ({ id, reg }
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                        <div>
-                            <h5 className="font-black text-[10px] text-blue-600 mb-3 uppercase tracking-[0.2em] opacity-70">SENARAI PEMAIN</h5>
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                {reg.students.map((s, i) => (
-                                    <div key={i} className="text-[10px] bg-blue-50/50 border border-blue-100 p-2 rounded-xl flex justify-between items-center font-bold text-blue-900">
-                                        <span className="truncate pr-2">{s.name}</span>
-                                        <span className="font-mono bg-white px-1.5 py-0.5 rounded-md border border-blue-100 shrink-0">{s.gender === 'Lelaki' ? 'L' : 'P'}{s.category.replace(/[^0-9]/g, '')}</span>
-                                    </div>
-                                ))}
-                             </div>
                         </div>
                     </div>
                 </div>

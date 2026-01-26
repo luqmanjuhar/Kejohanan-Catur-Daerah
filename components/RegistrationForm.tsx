@@ -157,7 +157,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
-      alert("Sila betulkan ralat pada borang.");
+      alert("Sila betulkan ralat format pada borang.");
       return;
     }
     if (students.length === 0) {
@@ -174,7 +174,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
         onSuccess(regId, data);
         sendWhatsAppNotification(regId, data, 'create', eventConfig.adminPhone);
     } catch (err) {
-        alert("Pendaftaran gagal dihantar. Sila periksa sambungan internet.");
+        alert("Pendaftaran gagal dihantar ke Cloud. Sila periksa sambungan internet anda.");
     }
   };
 
