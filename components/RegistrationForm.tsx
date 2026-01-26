@@ -85,12 +85,13 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
     let val = value;
     if (field === 'name') val = val.toUpperCase();
     if (field === 'phone') val = formatPhoneNumber(val);
+    if (field === 'ic') val = formatIC(val);
     updated[index] = { ...updated[index], [field]: val };
     onDraftChange({ ...draft, teachers: updated });
   };
 
   const addTeacher = () => {
-    onDraftChange({ ...draft, teachers: [...teachers, { name: '', email: '', phone: '', position: 'Pengiring' }] });
+    onDraftChange({ ...draft, teachers: [...teachers, { name: '', ic: '', email: '', phone: '', position: 'Pengiring' }] });
   };
 
   const removeTeacher = (index: number) => {
@@ -146,7 +147,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
         onDraftChange({
             schoolName: '',
             schoolType: '',
-            teachers: [{ name: '', email: '', phone: '', position: 'Ketua' }],
+            teachers: [{ name: '', ic: '', email: '', phone: '', position: 'Ketua' }],
             students: [{ name: '', ic: '', gender: '', race: '', category: '', playerId: '' }]
         });
         setFormErrors({ teachers: {}, students: {} });
@@ -228,8 +229,11 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ registrations, onSu
                         </button>
                     )}
                  </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <input required placeholder="Nama Guru" value={teacher.name} onChange={(e) => handleTeacherChange(index, 'name', e.target.value)} className="w-full min-h-[48px] px-4 py-2 border-2 border-white rounded-xl focus:border-orange-200 outline-none text-sm font-bold shadow-sm" />
+                    <input required placeholder="No. Kad Pengenalan" value={teacher.ic} onChange={(e) => handleTeacherChange(index, 'ic', e.target.value)} className="w-full min-h-[48px] px-4 py-2 border-2 border-white rounded-xl focus:border-orange-200 outline-none text-sm font-bold shadow-sm font-mono" maxLength={14} />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input required type="email" placeholder="Email" value={teacher.email} onChange={(e) => handleTeacherChange(index, 'email', e.target.value)} className={`w-full min-h-[48px] px-4 py-2 border-2 rounded-xl focus:border-orange-200 outline-none text-sm font-bold shadow-sm ${formErrors.teachers[index]?.includes('Email tidak sah') ? 'border-red-300' : 'border-white'}`} />
                     <input required type="tel" placeholder="No. Telefon" value={teacher.phone} onChange={(e) => handleTeacherChange(index, 'phone', e.target.value)} className={`w-full min-h-[48px] px-4 py-2 border-2 rounded-xl focus:border-orange-200 outline-none text-sm font-bold shadow-sm ${formErrors.teachers[index]?.includes('No. Telefon tidak sah') ? 'border-red-300' : 'border-white'}`} />
                  </div>

@@ -88,7 +88,7 @@ const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onClose }) => {
 
   const getScriptContent = () => {
     return `/**
- * Backend MSSD Catur v3.5 - Pasir Gudang Edition
+ * Backend MSSD Catur v3.6 - Pasir Gudang Edition
  */
 function doGet(e) {
   const action = e.parameter.action;
@@ -177,7 +177,7 @@ function fetchRegistrations(ss) {
   }
   for (let i = 1; i < teacherData.length; i++) {
     const id = teacherData[i][0];
-    if (registrations[id]) registrations[id].teachers.push({ name: teacherData[i][2], email: teacherData[i][3], phone: teacherData[i][4], position: teacherData[i][5] });
+    if (registrations[id]) registrations[id].teachers.push({ name: teacherData[i][2], ic: teacherData[i][3], email: teacherData[i][4], phone: teacherData[i][5], position: teacherData[i][6] });
   }
   for (let i = 1; i < studentData.length; i++) {
     const id = studentData[i][0];
@@ -197,7 +197,7 @@ function saveRegistration(ss, data) {
     for (let i = vals.length - 1; i >= 1; i--) if (vals[i][0] === id) sheet.deleteRow(i + 1);
   });
   schoolSheet.appendRow([id, data.schoolName, data.schoolType, data.teachers.length, data.students.length, 0, 0, 0, 0, 0, new Date(), new Date(), 'AKTIF']);
-  data.teachers.forEach(t => teacherSheet.appendRow([id, data.schoolName, t.name, t.email, t.phone, t.position]));
+  data.teachers.forEach(t => teacherSheet.appendRow([id, data.schoolName, t.name, t.ic, t.email, t.phone, t.position]));
   data.students.forEach(s => studentSheet.appendRow([id, data.schoolName, s.name, s.ic, s.gender, s.category, '', s.race, s.playerId]));
   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 }
@@ -301,7 +301,7 @@ function searchRegistration(ss, id, pass) {
                                 </button>
                             </div>
                             <p className="text-xs text-indigo-500/80 leading-relaxed font-bold">
-                                Gunakan versi 3.5 untuk kestabilan maksimum. Pastikan anda "Deploy" semula Web App selepas mengemaskini kod dalam Apps Script.
+                                Gunakan versi 3.6 untuk kestabilan maksimum. Pastikan anda "Deploy" semula Web App selepas mengemaskini kod dalam Apps Script.
                             </p>
                         </div>
                     </div>

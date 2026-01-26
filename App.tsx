@@ -29,7 +29,7 @@ function App() {
   }>({
     schoolName: '',
     schoolType: '',
-    teachers: [{ name: '', email: '', phone: '', position: 'Ketua' }],
+    teachers: [{ name: '', ic: '', email: '', phone: '', position: 'Ketua' }],
     students: [{ name: '', ic: '', gender: '', race: '', category: '', playerId: '' }]
   });
 
@@ -77,7 +77,7 @@ function App() {
     setDraftRegistration({
         schoolName: '',
         schoolType: '',
-        teachers: [{ name: '', email: '', phone: '', position: 'Ketua' }],
+        teachers: [{ name: '', ic: '', email: '', phone: '', position: 'Ketua' }],
         students: [{ name: '', ic: '', gender: '', race: '', category: '', playerId: '' }]
     });
     setSuccessData({

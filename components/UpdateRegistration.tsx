@@ -146,7 +146,7 @@ const UpdateRegistration: React.FC<UpdateRegistrationProps> = ({ localRegistrati
                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                     <h4 className="font-bold text-orange-800 mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">👨‍🏫 Maklumat Guru</h4>
                     {data.teachers.map((t: Teacher, i: number) => (
-                        <div key={i} className="mb-4 grid md:grid-cols-3 gap-4 pb-4 border-b border-orange-200 last:border-0">
+                        <div key={i} className="mb-4 grid md:grid-cols-2 lg:grid-cols-4 gap-4 pb-4 border-b border-orange-200 last:border-0">
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 block mb-1 uppercase">Nama Penuh</label>
                                 <input 
@@ -156,7 +156,19 @@ const UpdateRegistration: React.FC<UpdateRegistrationProps> = ({ localRegistrati
                                         teachers[i].name = e.target.value.toUpperCase();
                                         return { ...d, teachers };
                                     })}
-                                    className="p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-orange-300" placeholder="Nama" required
+                                    className="p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-orange-300 text-sm" placeholder="Nama" required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 block mb-1 uppercase">No. IC</label>
+                                <input 
+                                    value={t.ic}
+                                    onChange={e => updateData(d => {
+                                        const teachers = [...d.teachers];
+                                        teachers[i].ic = formatIC(e.target.value);
+                                        return { ...d, teachers };
+                                    })}
+                                    className="p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-orange-300 text-sm font-mono" placeholder="No. IC" required
                                 />
                             </div>
                             <div>
@@ -169,11 +181,8 @@ const UpdateRegistration: React.FC<UpdateRegistrationProps> = ({ localRegistrati
                                         teachers[i].email = e.target.value;
                                         return { ...d, teachers };
                                     })}
-                                    className={`p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-orange-300 ${formErrors.teachers[i]?.includes('Email tidak sah') ? 'border-red-500 bg-red-50' : ''}`} placeholder="Email" required
+                                    className={`p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-orange-300 text-sm ${formErrors.teachers[i]?.includes('Email tidak sah') ? 'border-red-500 bg-red-50' : ''}`} placeholder="Email" required
                                 />
-                                {formErrors.teachers[i]?.includes('Email tidak sah') && (
-                                  <p className="text-red-500 text-[9px] mt-1 font-bold italic">Ralat format email</p>
-                                )}
                             </div>
                             <div className="flex gap-2">
                                 <div className="flex-1">
@@ -185,11 +194,8 @@ const UpdateRegistration: React.FC<UpdateRegistrationProps> = ({ localRegistrati
                                             teachers[i].phone = formatPhoneNumber(e.target.value);
                                             return { ...d, teachers };
                                         })}
-                                        className={`p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-orange-300 ${formErrors.teachers[i]?.includes('No. Telefon tidak sah') ? 'border-red-500 bg-red-50' : ''}`} placeholder="Telefon" required
+                                        className={`p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-orange-300 text-sm ${formErrors.teachers[i]?.includes('No. Telefon tidak sah') ? 'border-red-500 bg-red-50' : ''}`} placeholder="Telefon" required
                                     />
-                                    {formErrors.teachers[i]?.includes('No. Telefon tidak sah') && (
-                                      <p className="text-red-500 text-[9px] mt-1 font-bold italic">No. Malaysia sahaja</p>
-                                    )}
                                 </div>
                                 {i > 0 && (
                                     <div className="flex items-end">
@@ -201,7 +207,7 @@ const UpdateRegistration: React.FC<UpdateRegistrationProps> = ({ localRegistrati
                             </div>
                         </div>
                     ))}
-                    <button type="button" onClick={() => updateData(d => ({...d, teachers: [...d.teachers, {name:'', email:'', phone:'', position:'Pengiring'}]}))} className="text-xs font-bold text-orange-600 bg-orange-100 px-3 py-1.5 rounded-lg hover:bg-orange-200 transition-colors flex items-center gap-1 mt-2 shadow-sm">
+                    <button type="button" onClick={() => updateData(d => ({...d, teachers: [...d.teachers, {name:'', ic:'', email:'', phone:'', position:'Pengiring'}]}))} className="text-xs font-bold text-orange-600 bg-orange-100 px-3 py-1.5 rounded-lg hover:bg-orange-200 transition-colors flex items-center gap-1 mt-2 shadow-sm">
                         <Plus size={14} /> TAMBAH GURU PENGIRING
                     </button>
                  </div>
@@ -220,7 +226,7 @@ const UpdateRegistration: React.FC<UpdateRegistrationProps> = ({ localRegistrati
                                             students[i].name = e.target.value.toUpperCase();
                                             return {...d, students};
                                         })}
-                                        className="p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-blue-300" placeholder="Nama" required
+                                        className="p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-blue-300 text-sm" placeholder="Nama" required
                                     />
                                 </div>
                                 <div className="flex gap-2">
@@ -245,7 +251,7 @@ const UpdateRegistration: React.FC<UpdateRegistrationProps> = ({ localRegistrati
                                                 }
                                                 return {...d, students};
                                             })}
-                                            className="p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-blue-300" placeholder="IC" required
+                                            className="p-2 border rounded-lg w-full outline-none focus:ring-2 focus:ring-blue-300 text-sm font-mono" placeholder="IC" required
                                         />
                                     </div>
                                     <div className="flex items-end">

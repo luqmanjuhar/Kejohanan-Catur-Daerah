@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { RegistrationsMap, Registration } from '../../types';
 import { Users, School, GraduationCap, UserCheck } from 'lucide-react';
@@ -65,56 +66,54 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
 
   return (
     <div className="space-y-6">
-       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-orange-600">📊 Dashboard Pendaftaran</h2>
+       <div className="flex justify-between items-center px-2">
+        <h2 className="text-xl md:text-2xl font-black text-orange-600 uppercase tracking-tighter">📊 Status Pendaftaran</h2>
         <div className="flex gap-2">
-            <button onClick={onOpenSetup} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">
-                ⚙️ Setup
+            <button onClick={onOpenSetup} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 text-xs uppercase tracking-wider transition-all">
+                Setup
             </button>
-            <button onClick={onRefresh} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                🔄 Segerak
+            <button onClick={onRefresh} className="px-4 py-2 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 text-xs uppercase tracking-wider shadow-lg shadow-orange-100 transition-all active:scale-95">
+                Segerak
             </button>
         </div>
        </div>
 
        {/* Cards */}
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Jumlah Pendaftaran" value={Object.keys(registrations).length} icon={<GraduationCap />} color="orange" />
-            <StatCard label="Jumlah Pelajar" value={stats.totalStudents} icon={<Users />} color="amber" />
-            <StatCard label="Jumlah Sekolah" value={stats.totalSchools} icon={<School />} color="yellow" />
-            <StatCard label="Jumlah Guru" value={stats.totalTeachers} icon={<UserCheck />} color="red" />
+       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <StatCard label="Pendaftaran" value={Object.keys(registrations).length} icon={<GraduationCap />} color="orange" />
+            <StatCard label="Pelajar" value={stats.totalStudents} icon={<Users />} color="amber" />
+            <StatCard label="Sekolah" value={stats.totalSchools} icon={<School />} color="yellow" />
+            <StatCard label="Guru" value={stats.totalTeachers} icon={<UserCheck />} color="red" />
        </div>
 
        {/* Tree Breakdown */}
-       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6">
-            <h3 className="text-xl font-bold text-indigo-800 mb-6 text-center">Analisis Pendaftaran</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+       <div className="bg-white rounded-[2rem] p-6 md:p-10 border-2 border-orange-50 shadow-sm">
+            <h3 className="text-lg font-black text-gray-800 mb-8 text-center uppercase tracking-widest border-b-2 border-orange-100 pb-4">Analisis Kategori Pasir Gudang</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
                 {/* Primary */}
                 <div className="text-center">
-                    <div className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold mb-4 inline-block shadow">
-                        <div className="text-2xl font-bold">{stats.counters.primary.schools.size}</div>
-                        <div className="text-sm">Sekolah Kebangsaan</div>
+                    <div className="bg-emerald-600 text-white px-6 py-2.5 rounded-2xl font-black mb-6 inline-block shadow-xl shadow-emerald-100 text-xs uppercase tracking-widest">
+                        <div className="text-2xl">{stats.counters.primary.schools.size}</div>
+                        <div>Sekolah Rendah</div>
                     </div>
-                    <div className="bg-green-100 border border-green-300 rounded-lg p-3 mx-auto max-w-sm">
-                        <div className="font-semibold text-green-800 mb-2">Bawah 12 Tahun</div>
-                        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                            <div className="bg-blue-200 text-blue-800 px-2 py-1 rounded">
-                                <span className="font-bold block text-lg">{stats.counters.primary.u12m}</span> Lelaki
+                    <div className="bg-emerald-50/50 border-2 border-emerald-100 rounded-3xl p-6 mx-auto">
+                        <div className="font-black text-emerald-800 mb-4 uppercase text-xs tracking-wider">Bawah 12 Tahun (U12)</div>
+                        <div className="grid grid-cols-2 gap-3 text-xs mb-6 font-black">
+                            <div className="bg-white border-2 border-blue-100 text-blue-600 px-3 py-3 rounded-2xl shadow-sm">
+                                <span className="block text-xl mb-1">{stats.counters.primary.u12m}</span> LELAKI
                             </div>
-                            <div className="bg-pink-200 text-pink-800 px-2 py-1 rounded">
-                                <span className="font-bold block text-lg">{stats.counters.primary.u12f}</span> Perempuan
+                            <div className="bg-white border-2 border-pink-100 text-pink-600 px-3 py-3 rounded-2xl shadow-sm">
+                                <span className="block text-xl mb-1">{stats.counters.primary.u12f}</span> PEREMPUAN
                             </div>
                         </div>
                         
-                        {/* Race Breakdown Primary */}
-                        <div className="mt-2 pt-2 border-t border-green-200">
-                            <div className="text-xs font-semibold text-green-800 mb-1 text-left">Mengikut Bangsa:</div>
-                            <div className="grid grid-cols-2 gap-1 text-xs text-left">
+                        <div className="mt-4 pt-4 border-t-2 border-emerald-100/50">
+                            <div className="text-[10px] font-black text-emerald-800 mb-3 text-left uppercase tracking-widest opacity-60">Mengikut Bangsa:</div>
+                            <div className="grid grid-cols-1 gap-1.5 text-[11px] font-bold text-left">
                                 {Object.entries(stats.counters.primary.race).map(([race, count]) => (
-                                    // Fix: Operator '>' cannot be applied to types 'unknown' and 'number'.
                                     (count as number) > 0 && (
-                                    <div key={race} className="flex justify-between bg-white/50 px-2 rounded">
-                                        <span>{race}:</span> <span className="font-bold">{count}</span>
+                                    <div key={race} className="flex justify-between bg-white px-3 py-1.5 rounded-xl border border-emerald-50 shadow-sm">
+                                        <span className="text-emerald-700">{race}</span> <span className="text-emerald-900">{count}</span>
                                     </div>
                                     )
                                 ))}
@@ -125,31 +124,28 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
 
                 {/* Secondary */}
                 <div className="text-center">
-                    <div className="bg-purple-500 text-white px-4 py-2 rounded-lg font-semibold mb-4 inline-block shadow">
-                        <div className="text-2xl font-bold">{stats.counters.secondary.schools.size}</div>
-                        <div className="text-sm">Sekolah Menengah</div>
+                    <div className="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-black mb-6 inline-block shadow-xl shadow-indigo-100 text-xs uppercase tracking-widest">
+                        <div className="text-2xl">{stats.counters.secondary.schools.size}</div>
+                        <div>Sekolah Menengah</div>
                     </div>
-                    <div className="space-y-3 mx-auto max-w-sm">
-                        <div className="bg-purple-100 border border-purple-300 rounded-lg p-3">
-                            <div className="font-semibold text-purple-800 mb-2">Bawah 15 Tahun</div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="bg-blue-200 text-blue-800 px-2 py-1 rounded">
-                                    <span className="font-bold block text-lg">{stats.counters.secondary.u15m}</span> Lelaki
+                    <div className="space-y-6 mx-auto">
+                        <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-6">
+                            <div className="font-black text-indigo-800 mb-4 uppercase text-xs tracking-wider">Bawah 15 Tahun (U15)</div>
+                            <div className="grid grid-cols-2 gap-3 text-xs mb-6 font-black">
+                                <div className="bg-white border-2 border-blue-100 text-blue-600 px-3 py-3 rounded-2xl shadow-sm">
+                                    <span className="block text-xl mb-1">{stats.counters.secondary.u15m}</span> LELAKI
                                 </div>
-                                <div className="bg-pink-200 text-pink-800 px-2 py-1 rounded">
-                                    <span className="font-bold block text-lg">{stats.counters.secondary.u15f}</span> Perempuan
+                                <div className="bg-white border-2 border-pink-100 text-pink-600 px-3 py-3 rounded-2xl shadow-sm">
+                                    <span className="block text-xl mb-1">{stats.counters.secondary.u15f}</span> PEREMPUAN
                                 </div>
                             </div>
-                            
-                            {/* Race Breakdown U15 */}
-                            <div className="mt-2 pt-2 border-t border-purple-200">
-                                <div className="text-xs font-semibold text-purple-800 mb-1 text-left">Mengikut Bangsa:</div>
-                                <div className="grid grid-cols-2 gap-1 text-xs text-left">
+                            <div className="mt-4 pt-4 border-t-2 border-indigo-100/50">
+                                <div className="text-[10px] font-black text-indigo-800 mb-3 text-left uppercase tracking-widest opacity-60">U15 Bangsa:</div>
+                                <div className="grid grid-cols-1 gap-1.5 text-[11px] font-bold text-left">
                                     {Object.entries(stats.counters.secondary.raceU15).map(([race, count]) => (
-                                        // Fix: Operator '>' cannot be applied to types 'unknown' and 'number'.
                                         (count as number) > 0 && (
-                                        <div key={race} className="flex justify-between bg-white/50 px-2 rounded">
-                                            <span>{race}:</span> <span className="font-bold">{count}</span>
+                                        <div key={race} className="flex justify-between bg-white px-3 py-1.5 rounded-xl border border-indigo-50 shadow-sm">
+                                            <span className="text-indigo-700">{race}</span> <span className="text-indigo-900">{count}</span>
                                         </div>
                                         )
                                     ))}
@@ -157,26 +153,23 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
                             </div>
                         </div>
                         
-                        <div className="bg-purple-100 border border-purple-300 rounded-lg p-3">
-                            <div className="font-semibold text-purple-800 mb-2">Bawah 18 Tahun</div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="bg-blue-200 text-blue-800 px-2 py-1 rounded">
-                                    <span className="font-bold block text-lg">{stats.counters.secondary.u18m}</span> Lelaki
+                        <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-6">
+                            <div className="font-black text-indigo-800 mb-4 uppercase text-xs tracking-wider">Bawah 18 Tahun (U18)</div>
+                            <div className="grid grid-cols-2 gap-3 text-xs mb-6 font-black">
+                                <div className="bg-white border-2 border-blue-100 text-blue-600 px-3 py-3 rounded-2xl shadow-sm">
+                                    <span className="block text-xl mb-1">{stats.counters.secondary.u18m}</span> LELAKI
                                 </div>
-                                <div className="bg-pink-200 text-pink-800 px-2 py-1 rounded">
-                                    <span className="font-bold block text-lg">{stats.counters.secondary.u18f}</span> Perempuan
+                                <div className="bg-white border-2 border-pink-100 text-pink-600 px-3 py-3 rounded-2xl shadow-sm">
+                                    <span className="block text-xl mb-1">{stats.counters.secondary.u18f}</span> PEREMPUAN
                                 </div>
                             </div>
-                            
-                            {/* Race Breakdown U18 */}
-                            <div className="mt-2 pt-2 border-t border-purple-200">
-                                <div className="text-xs font-semibold text-purple-800 mb-1 text-left">Mengikut Bangsa:</div>
-                                <div className="grid grid-cols-2 gap-1 text-xs text-left">
+                            <div className="mt-4 pt-4 border-t-2 border-indigo-100/50">
+                                <div className="text-[10px] font-black text-indigo-800 mb-3 text-left uppercase tracking-widest opacity-60">U18 Bangsa:</div>
+                                <div className="grid grid-cols-1 gap-1.5 text-[11px] font-bold text-left">
                                     {Object.entries(stats.counters.secondary.raceU18).map(([race, count]) => (
-                                        // Fix: Operator '>' cannot be applied to types 'unknown' and 'number'.
                                         (count as number) > 0 && (
-                                        <div key={race} className="flex justify-between bg-white/50 px-2 rounded">
-                                            <span>{race}:</span> <span className="font-bold">{count}</span>
+                                        <div key={race} className="flex justify-between bg-white px-3 py-1.5 rounded-xl border border-indigo-50 shadow-sm">
+                                            <span className="text-indigo-700">{race}</span> <span className="text-indigo-900">{count}</span>
                                         </div>
                                         )
                                     ))}
@@ -189,12 +182,15 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
        </div>
 
        {/* School List */}
-       <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Senarai Sekolah Berdaftar</h3>
+       <div className="bg-white rounded-[2rem] border-2 border-orange-50 p-6 md:p-10 shadow-sm">
+            <h3 className="text-lg font-black text-gray-800 mb-6 flex items-center gap-3">
+                <div className="bg-orange-600 text-white p-2 rounded-xl"><School size={20}/></div>
+                SENARAI SEKOLAH BERDAFTAR
+            </h3>
             {Object.entries(registrations).length === 0 ? (
-                <div className="text-center text-gray-500 py-8">Tiada pendaftaran lagi.</div>
+                <div className="text-center text-gray-400 py-12 font-bold italic bg-gray-50 rounded-3xl border-2 border-dashed border-gray-100">Tiada rekod pendaftaran ditemui.</div>
             ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Object.entries(registrations).map(([id, reg]) => (
                         <SchoolListItem key={id} id={id} reg={reg as Registration} />
                     ))}
@@ -207,55 +203,64 @@ const Dashboard: React.FC<DashboardProps> = ({ registrations, onRefresh, onOpenS
 
 const StatCard = ({ label, value, icon, color }: any) => {
     const colorClasses = {
-        orange: "from-orange-600 to-orange-700 text-orange-100",
-        amber: "from-amber-600 to-amber-700 text-amber-100",
-        yellow: "from-yellow-600 to-yellow-700 text-yellow-100",
-        red: "from-red-600 to-red-700 text-red-100",
-    }[color as string] || "from-gray-600 to-gray-700 text-gray-100";
+        orange: "from-orange-600 to-orange-700 text-orange-100 shadow-orange-100",
+        amber: "from-amber-600 to-amber-700 text-amber-100 shadow-amber-100",
+        yellow: "from-yellow-600 to-yellow-700 text-yellow-100 shadow-yellow-100",
+        red: "from-red-600 to-red-700 text-red-100 shadow-red-100",
+    }[color as string] || "from-gray-600 to-gray-700 text-gray-100 shadow-gray-100";
 
     return (
-        <div className={`bg-gradient-to-br ${colorClasses} rounded-lg p-6 text-white shadow-lg`}>
-            <div className="flex justify-between items-start">
-                <div className="text-3xl font-bold">{value}</div>
-                <div className="opacity-80 p-2 bg-white/10 rounded-full">{icon}</div>
+        <div className={`bg-gradient-to-br ${colorClasses} rounded-3xl p-5 md:p-7 text-white shadow-xl transform transition-all hover:scale-[1.02]`}>
+            <div className="flex justify-between items-start mb-4">
+                <div className="text-2xl md:text-3xl font-black">{value}</div>
+                <div className="opacity-80 p-2.5 bg-white/20 rounded-2xl backdrop-blur-sm">{icon}</div>
             </div>
-            <div className="mt-2 text-sm font-medium opacity-90">{label}</div>
+            <div className="text-[10px] md:text-xs font-black uppercase tracking-widest opacity-90">{label}</div>
         </div>
     );
 };
 
-// Fix: Type '{ key: string; id: string; reg: Registration; }' is not assignable to type '{ id: string; reg: Registration; }'.
 const SchoolListItem: React.FC<{ id: string; reg: Registration }> = ({ id, reg }) => {
     const [expanded, setExpanded] = React.useState(false);
 
     return (
-        <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-3xl border-2 border-gray-50 overflow-hidden shadow-sm hover:shadow-md transition-all group">
             <button 
                 onClick={() => setExpanded(!expanded)}
-                className="w-full text-left p-4 hover:bg-gray-100 transition-colors flex justify-between items-center"
+                className="w-full text-left p-5 flex justify-between items-center active:bg-gray-50 touch-none"
             >
-                <div>
-                    <h3 className="font-bold text-indigo-900">{reg.schoolName}</h3>
-                    <p className="text-xs text-gray-500 mt-1">ID: {id} • {reg.students.length} Pelajar</p>
+                <div className="flex-1 min-w-0 pr-4">
+                    <h3 className="font-black text-gray-800 text-sm md:text-base truncate uppercase">{reg.schoolName}</h3>
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                        <span className="text-[9px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-lg font-black uppercase tracking-tighter">ID: {id}</span>
+                        <span className="text-[9px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg font-black uppercase tracking-tighter">{reg.students.length} PELAJAR</span>
+                    </div>
                 </div>
-                <span className={`transform transition-transform ${expanded ? 'rotate-180' : ''}`}>▼</span>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all bg-gray-50 group-hover:bg-orange-600 group-hover:text-white ${expanded ? 'rotate-180 bg-orange-600 text-white' : ''}`}>
+                    <span className="text-[10px]">▼</span>
+                </div>
             </button>
             {expanded && (
-                <div className="p-4 pt-0 border-t border-gray-200 bg-white">
-                    <div className="mt-3 grid md:grid-cols-2 gap-4">
+                <div className="px-5 pb-6 animate-fadeIn">
+                    <div className="grid grid-cols-1 gap-6 pt-4 border-t border-gray-50">
                         <div>
-                            <h5 className="font-semibold text-sm text-gray-600 mb-2">Guru</h5>
-                            {reg.teachers.map((t, i) => (
-                                <div key={i} className="text-sm mb-1">{t.name} ({t.position}) - {t.phone}</div>
-                            ))}
+                            <h5 className="font-black text-[10px] text-orange-600 mb-3 uppercase tracking-[0.2em] opacity-70">GURU PEMBIMBING</h5>
+                            <div className="space-y-2">
+                                {reg.teachers.map((t, i) => (
+                                    <div key={i} className="text-xs font-bold text-gray-700 flex items-center gap-2 bg-orange-50/50 p-2.5 rounded-xl border border-orange-100">
+                                        <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
+                                        {t.name} <span className="text-[9px] opacity-50 ml-auto">({t.position})</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                         <div>
-                            <h5 className="font-semibold text-sm text-gray-600 mb-2">Pelajar</h5>
-                             <div className="max-h-32 overflow-y-auto space-y-1">
+                            <h5 className="font-black text-[10px] text-blue-600 mb-3 uppercase tracking-[0.2em] opacity-70">SENARAI PEMAIN</h5>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                 {reg.students.map((s, i) => (
-                                    <div key={i} className="text-xs bg-gray-100 p-1 rounded flex justify-between">
-                                        <span>{s.name}</span>
-                                        <span className="font-mono">{s.gender === 'Lelaki' ? 'L' : 'P'}{s.category.replace(/[^0-9]/g, '')}</span>
+                                    <div key={i} className="text-[10px] bg-blue-50/50 border border-blue-100 p-2 rounded-xl flex justify-between items-center font-bold text-blue-900">
+                                        <span className="truncate pr-2">{s.name}</span>
+                                        <span className="font-mono bg-white px-1.5 py-0.5 rounded-md border border-blue-100 shrink-0">{s.gender === 'Lelaki' ? 'L' : 'P'}{s.category.replace(/[^0-9]/g, '')}</span>
                                     </div>
                                 ))}
                              </div>
